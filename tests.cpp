@@ -402,17 +402,26 @@ TEST(correctness, erase_big_range) {
   element<size_t>::expect_no_instances();
 }
 
-TEST(correctness, reallocation_throw) {
+template<typename F>
+void check_reallocation_throw_at(const F& failing_position) {
   {
     vector<element<size_t>> a;
     a.reserve(10);
     size_t n = a.capacity();
     for (size_t i = 0; i != n; ++i)
       a.push_back(i);
-    element<size_t>::set_throw_countdown(7);
+    element<size_t>::set_throw_countdown(failing_position(n));
     EXPECT_THROW(a.push_back(42), std::runtime_error);
   }
   element<size_t>::expect_no_instances();
+}
+
+TEST(correctness, reallocation_throw) {
+    check_reallocation_throw_at([](auto n) { return 7; });
+}
+
+TEST(correctness, last_copy_at_reallocation_throw) {
+  check_reallocation_throw_at([](auto n) { return n + 1; });
 }
 
 TEST(correctness, empty_storage) {
