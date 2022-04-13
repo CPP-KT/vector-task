@@ -417,7 +417,7 @@ void check_reallocation_throw_at(const F& failing_position) {
 }
 
 TEST(correctness, reallocation_throw) {
-    check_reallocation_throw_at([](auto n) { return 7; });
+  check_reallocation_throw_at([](auto n) { return n - 1; });
 }
 
 TEST(correctness, last_copy_at_reallocation_throw) {
