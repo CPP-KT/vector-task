@@ -515,6 +515,8 @@ TEST(correctness, empty_storage_shrink_to_fit) {
   EXPECT_NE(nullptr, a.data());
   a.shrink_to_fit();
   EXPECT_EQ(nullptr, a.data());
+  EXPECT_EQ(0, a.size());
+  EXPECT_EQ(0, a.capacity());
 }
 
 // This test actually checks memory leak in pair with @valgrind
