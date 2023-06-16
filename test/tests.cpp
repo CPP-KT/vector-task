@@ -436,7 +436,7 @@ TEST_F(correctness_test, insert_begin) {
 
   vector<element> a;
   for (size_t i = 0; i < N; ++i) {
-    auto it = a.insert(a.begin(), 2 * i + 1);
+    auto it = a.insert(as_const(a).begin(), 2 * i + 1);
     ASSERT_EQ(a.begin(), it);
     ASSERT_EQ(i + 1, a.size());
   }
@@ -509,7 +509,7 @@ TEST_F(correctness_test, erase) {
     size_t old_capacity = a.capacity();
     element* old_data = a.data();
 
-    auto it = a.erase(a.begin() + i);
+    auto it = a.erase(as_const(a).begin() + i);
     ASSERT_EQ(a.begin() + i, it);
     ASSERT_EQ(N - 1, a.size());
     ASSERT_EQ(old_capacity, a.capacity());
@@ -571,7 +571,7 @@ TEST_F(correctness_test, erase_range_begin) {
   size_t old_capacity = a.capacity();
   element* old_data = a.data();
 
-  auto it = a.erase(a.begin(), a.begin() + K);
+  auto it = a.erase(as_const(a).begin(), as_const(a).begin() + K);
   EXPECT_EQ(a.begin(), it);
   EXPECT_EQ(N - K, a.size());
   EXPECT_EQ(old_capacity, a.capacity());
