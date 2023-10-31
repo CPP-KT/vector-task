@@ -17,6 +17,7 @@ class base_test : public ::testing::Test {
 protected:
   void SetUp() override {
     element::instances().clear();
+    ordered_element::insertion_order().clear();
     element::reset_copies();
   }
 
