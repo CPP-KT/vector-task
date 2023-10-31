@@ -32,7 +32,7 @@ private:
     }
 
     size_t back = insertion_order().back();
-    ASSERT_EQ(val, back) << "Elements must be destroyed in order reversed to insertion";
+    ASSERT_EQ(val, back) << "Elements must be destroyed in reverse order of insertion";
     insertion_order().pop_back();
   }
 };
