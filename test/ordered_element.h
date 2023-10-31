@@ -6,11 +6,11 @@
 
 class ordered_element {
 public:
-  ordered_element(size_t val): val(val) {
+  ordered_element(size_t val) : val(val) {
     insertion_order().push_back(val);
   }
 
-  ordered_element(const ordered_element& other): val(other.val) {
+  ordered_element(const ordered_element& other) : val(other.val) {
     other.val = 0;
   }
 

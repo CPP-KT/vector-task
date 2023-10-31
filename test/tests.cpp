@@ -435,10 +435,7 @@ TEST_F(correctness_test, pop_back) {
 }
 
 TEST_F(correctness_test, destroy_order) {
-  constexpr size_t N = 10;
-
   vector<ordered_element> a;
-  a.reserve(N);
 
   a.push_back(1);
   a.push_back(2);
