@@ -1,4 +1,5 @@
 #include "element.h"
+#include "ordered_element.h"
 #include "vector.h"
 
 #include <gtest/gtest.h>
@@ -8,6 +9,7 @@
 template class vector<int>;
 template class vector<element>;
 template class vector<std::string>;
+template class vector<ordered_element>;
 
 namespace {
 
@@ -429,6 +431,13 @@ TEST_F(correctness_test, pop_back) {
   EXPECT_EQ(0, a.size());
   EXPECT_EQ(old_capacity, a.capacity());
   EXPECT_EQ(old_data, a.data());
+}
+
+TEST_F(correctness_test, destroy_order) {
+  vector<ordered_element> a;
+  a.push_back(1);
+  a.push_back(2);
+  a.push_back(3);
 }
 
 TEST_F(correctness_test, insert_begin) {
