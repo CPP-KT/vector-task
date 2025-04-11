@@ -1,14 +1,19 @@
 ---
-Checks: |-
+Checks: '
   bugprone-*,
-  -cert-dcl21-cpp,
-  cert-dcl58-cpp,
-  cert-err34-c,
-  cert-oop57-cpp,
-  cert-oop58-cpp,
+  -bugprone-exception-escape,
+  cert-*,
+  -cert-oop54-cpp,
+  clang-analyzer-*,
+  clang-diagnostic-*,
+  concurrency-*,
   cppcoreguidelines-*,
+  -cppcoreguidelines-noexcept-move-operations,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-explicit-virtual-functions,
   -cppcoreguidelines-owning-memory,
-  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
   -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-pro-type-const-cast,
@@ -18,27 +23,61 @@ Checks: |-
   -cppcoreguidelines-special-member-functions,
   google-default-arguments,
   google-explicit-constructor,
-  google-runtime-operator
+  google-readability-avoid-underscore-in-googletest-name,
+  google-readability-casting,
+  google-runtime-int,
+  google-upgrade-googletest-case,
+  hicpp-exception-baseclass,
+  hicpp-ignored-remove-result,
+  hicpp-multiway-paths-covered,
+  hicpp-no-assembler,
   hicpp-signed-bitwise,
-  llvm-include-order,
+  misc-*,
+  -misc-no-recursion,
   modernize-*,
-  -modernize-use-trailing-return-type,
   -modernize-use-nodiscard,
-  misc-definitions-in-headers,
-  misc-misplaced-const,
-  misc-redundant-expression,
-  misc-throw-by-value-catch-by-reference,
-  misc-unconventional-assign-operator,
-  misc-unused-*,
+  -modernize-use-trailing-return-type,
   performance-*,
   -performance-noexcept-move-constructor,
-  readability-redundant-member-init,
-  readability-redundant-smartptr-get,
-  readability-redundant-string-cstr,
-  readability-redundant-string-init,
-  readability-simplify-boolean-expr,
-  readability-use-anyofallof,
+  -performance-avoid-endl,
+  portability-*,
+  readability-*,
+  -readability-else-after-return,
+  -readability-identifier-length,
+  -readability-redundant-access-specifiers
+'
+WarningsAsErrors: '*'
+FormatStyle: file
 CheckOptions:
-  - key:             hicpp-signed-bitwise.IgnorePositiveIntegerLiterals
-    value:           true
+  - key: readability-uppercase-literal-suffix.NewSuffixes
+    value: 'L;LL;LU;LLU;UL;ULL;Z'
+  - key: bugprone-unhandled-self-assignment.WarnOnlyIfThisHasSuspiciousField
+    value: false
+  - key: modernize-use-override.IgnoreDestructors
+    value: true
+  - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: true
+  - key: readability-function-size.ParameterThreshold
+    value: 8
+  - key: readability-function-size.StatementThreshold
+    value: 50
+  - key: misc-const-correctness.AnalyzeValues
+    value: false
+  - key: hicpp-signed-bitwise.IgnorePositiveIntegerLiterals
+    value: true
+  # Naming: types
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.UnionCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.TypeAliasCase
+    value: CamelCase
+  - key: readability-identifier-naming.TypeAliasIgnoredRegexp
+    value: '([a-z0-9_]+_)?(type|pointer|reference|iterator)|iterator_(category|concept)'
+  - key: readability-identifier-naming.TypeTemplateParameterCase
+    value: PascalCase
+  - key: readability-identifier-naming.TemplateTemplateParameterCase
+    value: PascalCase
 ...

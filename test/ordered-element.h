@@ -1,22 +1,25 @@
 #pragma once
 
-#include <gtest/gtest.h>
+#include <catch2/catch_test_macros.hpp>
 
+#include <cstddef>
 #include <vector>
 
-class ordered_element {
+namespace ct::test {
+
+class OrderedElement {
 public:
-  ordered_element(size_t val)
+  OrderedElement(size_t val) // NOLINT
       : val(val) {
     insertion_order().push_back(val);
   }
 
-  ordered_element(const ordered_element& other)
+  OrderedElement(const OrderedElement& other)
       : val(other.val) {
-    other.val = 0;
+    other.val = 0; // NOLINT
   }
 
-  ~ordered_element() {
+  ~OrderedElement() {
     delete_instance();
   }
 
@@ -28,13 +31,16 @@ public:
 private:
   mutable size_t val;
 
-  void delete_instance() {
+  void delete_instance() const {
     if (val == 0) {
       return;
     }
 
     size_t back = insertion_order().back();
-    ASSERT_EQ(val, back) << "Elements must be destroyed in reverse order of insertion";
+    INFO("Elements must be destroyed in reverse order of insertion");
+    REQUIRE(val == back);
     insertion_order().pop_back();
   }
 };
+
+} // namespace ct::test

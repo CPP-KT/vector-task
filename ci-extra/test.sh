@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 BUILD_TYPE=$1
@@ -21,7 +21,7 @@ if [[ $BUILD_TYPE == 'Debug' && -n $(which gdb) && $(uname -s) != MINGW* ]]; the
     -ex 'set print frame-arguments all' \
     -ex 'run' \
     -ex 'thread apply all bt -frame-info source-and-location -full' \
-    --args cmake-build-"$BUILD_TYPE"/tests
+    --args "build/${BUILD_TYPE}/tests"
 else
-  cmake-build-"$BUILD_TYPE"/tests
+  "build/${BUILD_TYPE}/tests"
 fi

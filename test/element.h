@@ -1,23 +1,32 @@
 #pragma once
 
+#include <cstddef>
 #include <set>
 
-struct element {
-  struct no_new_instances_guard;
+namespace ct::test {
 
-  element() = delete;
-  element(int data);
-  element(const element& other);
-  element(element&& other);
-  ~element();
+struct Element;
 
-  element& operator=(const element& c);
-  element& operator=(element&& c);
-  operator int() const;
+void swap(Element&, Element&); // NOLINT
+
+struct Element {
+  struct NoNewInstancesGuard;
+
+  Element() = delete;
+  Element(int data); // NOLINT
+  Element(const Element& other);
+  Element(Element&& other);
+  ~Element();
+
+  Element& operator=(const Element& c);
+  Element& operator=(Element&& c);
+  operator int() const; // NOLINT
 
   static void reset_counters();
   static size_t get_copy_counter();
   static size_t get_move_counter();
+
+  friend void swap(Element&, Element&); // NOLINT
 
 private:
   void add_instance();
@@ -27,31 +36,32 @@ private:
 private:
   int data;
 
-  static std::set<const element*> instances;
+  static std::set<const Element*> instances;
   inline static size_t copy_counter = 0;
   inline static size_t move_counter = 0;
 };
 
-struct element::no_new_instances_guard {
-  no_new_instances_guard();
+struct Element::NoNewInstancesGuard {
+  NoNewInstancesGuard();
 
-  no_new_instances_guard(const no_new_instances_guard&) = delete;
-  no_new_instances_guard& operator=(const no_new_instances_guard&) = delete;
+  NoNewInstancesGuard(const NoNewInstancesGuard&) = delete;
+  NoNewInstancesGuard& operator=(const NoNewInstancesGuard&) = delete;
 
-  ~no_new_instances_guard();
+  ~NoNewInstancesGuard();
 
   void expect_no_instances();
 
 private:
-  std::set<const element*> old_instances;
+  std::set<const Element*> old_instances;
 };
 
-struct element_with_non_throwing_move : element {
-  using element::element;
+struct ElementWithNonThrowingMove : Element {
+  using Element::Element;
 
-  element_with_non_throwing_move(const element_with_non_throwing_move& other) noexcept = default;
-  element_with_non_throwing_move(element_with_non_throwing_move&& other) noexcept = default;
+  ElementWithNonThrowingMove(const ElementWithNonThrowingMove& other) noexcept = default;
+  ElementWithNonThrowingMove(ElementWithNonThrowingMove&& other) noexcept = default;
 
-  element_with_non_throwing_move& operator=(const element_with_non_throwing_move& other) = default;
-  element_with_non_throwing_move& operator=(element_with_non_throwing_move&& other) noexcept = default;
+  ElementWithNonThrowingMove& operator=(const ElementWithNonThrowingMove& other) = default;
+  ElementWithNonThrowingMove& operator=(ElementWithNonThrowingMove&& other) noexcept = default;
 };
+} // namespace ct::test

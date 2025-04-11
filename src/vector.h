@@ -2,68 +2,73 @@
 
 #include <cstddef>
 
+namespace ct {
+
 template <typename T>
-class vector {
+class Vector {
 public:
-  using value_type = T;
+  using ValueType = T;
 
-  using reference = T&;
-  using const_reference = const T&;
+  using Reference = T&;
+  using ConstReference = const T&;
 
-  using pointer = T*;
-  using const_pointer = const T*;
+  using Pointer = T*;
+  using ConstPointer = const T*;
 
-  using iterator = pointer;
-  using const_iterator = const_pointer;
+  using Iterator = Pointer;
+  using ConstIterator = ConstPointer;
 
 public:
   // O(1) nothrow
-  vector() noexcept;
+  Vector() noexcept;
 
   // O(N) strong
-  vector(const vector& other);
+  Vector(const Vector& other);
 
   // O(1) strong
-  vector(vector&& other);
+  Vector(Vector&& other);
 
   // O(N) strong
-  vector& operator=(const vector& other);
+  Vector& operator=(const Vector& other);
 
   // O(1) strong
-  vector& operator=(vector&& other);
+  Vector& operator=(Vector&& other);
 
   // O(N) nothrow
-  ~vector() noexcept;
+  ~Vector() noexcept;
 
   // O(1) nothrow
-  reference operator[](size_t index);
+  Reference operator[](size_t index);
 
   // O(1) nothrow
-  const_reference operator[](size_t index) const;
+  ConstReference operator[](size_t index) const;
 
   // O(1) nothrow
-  pointer data() noexcept;
+  Pointer data() noexcept;
 
   // O(1) nothrow
-  const_pointer data() const noexcept;
+  ConstPointer data() const noexcept;
 
   // O(1) nothrow
   size_t size() const noexcept;
 
   // O(1) nothrow
-  reference front();
+  Reference front();
 
   // O(1) nothrow
-  const_reference front() const;
+  ConstReference front() const;
 
   // O(1) nothrow
-  reference back();
+  Reference back();
 
   // O(1) nothrow
-  const_reference back() const;
+  ConstReference back() const;
 
   // O(1)* strong
   void push_back(const T& value);
+
+  // O(1)* strong if move nothrow
+  void push_back(T&& value);
 
   // O(1) nothrow
   void pop_back();
@@ -84,26 +89,31 @@ public:
   void clear() noexcept;
 
   // O(1) nothrow
-  void swap(vector& other) noexcept;
+  void swap(Vector& other) noexcept;
 
   // O(1) nothrow
-  iterator begin() noexcept;
+  Iterator begin() noexcept;
 
   // O(1) nothrow
-  iterator end() noexcept;
+  Iterator end() noexcept;
 
   // O(1) nothrow
-  const_iterator begin() const noexcept;
+  ConstIterator begin() const noexcept;
 
   // O(1) nothrow
-  const_iterator end() const noexcept;
+  ConstIterator end() const noexcept;
 
   // O(N) strong
-  iterator insert(const_iterator pos, const T& value);
+  Iterator insert(ConstIterator pos, const T& value);
+
+  // O(N) strong if move nothrow
+  Iterator insert(ConstIterator pos, T&& value);
 
   // O(N) nothrow(swap)
-  iterator erase(const_iterator pos);
+  Iterator erase(ConstIterator pos);
 
   // O(N) nothrow(swap)
-  iterator erase(const_iterator first, const_iterator last);
+  Iterator erase(ConstIterator first, ConstIterator last);
 };
+
+} // namespace ct

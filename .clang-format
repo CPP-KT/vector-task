@@ -4,7 +4,7 @@ Standard: Latest
 # BasedOnStyle:  LLVM
 AccessModifierOffset: -2
 AlignAfterOpenBracket: BlockIndent
-AlignArrayOfStructures: Right
+AlignArrayOfStructures: None
 AlignConsecutiveAssignments: None
 AlignConsecutiveBitFields: None
 AlignConsecutiveDeclarations: None
@@ -96,6 +96,7 @@ IndentRequiresClause: true
 IndentWidth: 2
 IndentWrappedFunctionNames: false
 InsertBraces: true
+InsertNewlineAtEOF: true
 InsertTrailingCommas: Wrapped
 KeepEmptyLinesAtTheStartOfBlocks: false
 LambdaBodyIndentation: Signature
@@ -163,4 +164,6 @@ StatementMacros:
 TabWidth: 4
 UseCRLF: false
 UseTab: Never
+# TODO: Uncomment when clang-format-20 is available
+# WrapNamespaceBodyWithEmptyLines: Always
 ...

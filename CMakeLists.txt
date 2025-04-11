@@ -1,81 +1,35 @@
-cmake_minimum_required(VERSION 3.21)
-project(template)
+cmake_minimum_required(VERSION 3.24...3.31)
 
-set(CMAKE_CXX_STANDARD 20)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(ConfigureCompiler)
+include(CompilerWarnings)
 
-find_package(GTest REQUIRED)
+project(vector LANGUAGES CXX)
 
-file(GLOB SOLUTION_SRC src/*.cpp src/*.h)
-file(GLOB TEST_SRC test/*.cpp test/*.h)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_executable(tests ${TEST_SRC} ${SOLUTION_SRC})
+ct_configure_compiler()
+include(Dependencies)
 
-target_include_directories(tests PRIVATE src test)
+# Setup a 'solution' target
+file(GLOB SOLUTION_SRC CONFIGURE_DEPENDS src/*.cpp src/*.h)
+add_library(solution ${SOLUTION_SRC})
+target_include_directories(solution PUBLIC src)
+set_target_properties(solution PROPERTIES LINKER_LANGUAGE CXX)
+ct_set_compiler_warnings(solution)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  target_compile_options(tests PRIVATE /W4 /permissive-)
-  target_compile_options(tests PRIVATE /wd4018 /wd4245 /wd4389 /wd4267)
-  if(TREAT_WARNINGS_AS_ERRORS)
-    target_compile_options(tests PRIVATE /WX)
-  endif()
-  target_compile_definitions(tests PRIVATE -D_CRT_SECURE_NO_WARNINGS)
-else()
-  target_compile_options(tests PRIVATE -Wall -pedantic -Wextra)
-  target_compile_options(tests PRIVATE -Wno-sign-compare -Wno-self-move)
-  target_compile_options(tests PRIVATE -Wold-style-cast)
-  target_compile_options(tests PRIVATE -Wextra-semi)
-  target_compile_options(tests PRIVATE -Woverloaded-virtual)
-  target_compile_options(tests PRIVATE -Wzero-as-null-pointer-constant)
-  if(TREAT_WARNINGS_AS_ERRORS)
-    target_compile_options(tests PRIVATE -Werror -pedantic-errors)
-  endif()
-endif()
+# Setup a 'tests' target
+file(GLOB TESTS_SRC CONFIGURE_DEPENDS test/*.cpp test/*.h)
+add_executable(tests ${TESTS_SRC})
+target_include_directories(tests PRIVATE test)
+ct_set_compiler_warnings(tests)
 
-# Compiler specific warnings
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  target_compile_options(tests PRIVATE -Wshadow=compatible-local)
-  target_compile_options(tests PRIVATE -Wduplicated-branches)
-  target_compile_options(tests PRIVATE -Wduplicated-cond)
-  # Disabled due to GCC bug
-  # target_compile_options(tests PRIVATE -Wnull-dereference)
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  target_compile_options(tests PRIVATE -Wshadow-uncaptured-local)
-  target_compile_options(tests PRIVATE -Wloop-analysis)
-  target_compile_options(tests PRIVATE -Wno-self-assign-overloaded)
-endif()
+# Link tests with solution
+target_link_libraries(tests PRIVATE solution)
 
-option(USE_SANITIZERS "Enable to build with undefined and address sanitizers" OFF)
-if(USE_SANITIZERS)
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    message(STATUS "Enabling ASAN")
-    target_compile_options(tests PUBLIC /fsanitize=address)
-    target_compile_definitions(tests PUBLIC _DISABLE_STRING_ANNOTATION=1 _DISABLE_VECTOR_ANNOTATION=1)
-  else()
-    message(STATUS "Enabling USAN and ASAN")
-    target_compile_options(tests PUBLIC -fsanitize=undefined,address)
-    target_link_options(tests PUBLIC -fsanitize=undefined,address)
-
-    target_compile_options(tests PUBLIC -fno-sanitize-recover=all -fno-optimize-sibling-calls -fno-omit-frame-pointer)
-  endif()
-endif()
-
-option(USE_THREAD_SANITIZER "Enable to build with thread sanitizer" OFF)
-if(USE_THREAD_SANITIZER)
-  message(STATUS "Enabling TSAN")
-  target_compile_options(tests PUBLIC -fsanitize=thread -fno-sanitize-recover=all)
-  target_link_options(tests PUBLIC -fsanitize=thread)
-endif()
-
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  message(STATUS "Enabling libc++")
-  # These are intentionally set for all targets
-  add_compile_options(-stdlib=libc++)
-  add_link_options(-stdlib=libc++)
-endif()
-
-if(CMAKE_BUILD_TYPE MATCHES "Debug")
-  message(STATUS "Enabling _GLIBCXX_DEBUG")
-  target_compile_options(tests PUBLIC -D_GLIBCXX_DEBUG)
-endif()
-
-target_link_libraries(tests GTest::gtest GTest::gtest_main)
+# Link tests with dependencies
+find_package(Catch2 CONFIG REQUIRED)
+target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Иногда преподаватели изменяют репозиторий задания, исправляя проблемы
 # в задании и добавляя новые тесты. Этот скрипт позволяет взять новые
 # изменения. Подробная информация:
@@ -15,7 +15,7 @@ if [[ -n $(git status --untracked-files=no --porcelain) ]]; then
 fi
 
 if ! git remote | grep --quiet upstream; then
-  source ci-extra/set-upstream.sh
+  source .github/constants.env
   git remote add upstream "git@github.com:$UPSTREAM_REPO.git"
 fi
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 BUILD_TYPE=$1
@@ -14,4 +14,4 @@ valgrind --tool=memcheck \
   --vgdb=no \
   --error-exitcode=1 \
   --suppressions="${SCRIPT_DIR}/valgrind.suppressions" \
-  cmake-build-"$BUILD_TYPE"/tests
+  "build/${BUILD_TYPE}/tests"

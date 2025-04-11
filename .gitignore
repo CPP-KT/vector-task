@@ -2,11 +2,13 @@
 *.user
 .idea
 *.cbp
+.vs
 
 # Cmake
 CMakeCache.txt
 CMakeFiles/
-cmake-build*
+cmake-build*/
+build/
 cmake_install.cmake
 Makefile
 

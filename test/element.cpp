@@ -2,30 +2,38 @@
 
 #include "fault-injection.h"
 
-#include <gtest/gtest.h>
+#include <catch2/catch_test_macros.hpp>
 
-element::element(int data)
+#include <sstream>
+#include <utility>
+
+namespace ct::test {
+
+Element::Element(int data)
     : data(data) {
+  fault_injection_point();
   add_instance();
 }
 
-element::element(const element& other)
+Element::Element(const Element& other)
     : data(other.data) {
+  fault_injection_point();
   add_instance();
   ++copy_counter;
 }
 
-element::element(element&& other)
+Element::Element(Element&& other)
     : data(std::exchange(other.data, -1)) {
+  [[maybe_unused]] auto val = move_throw_disabled() || fault_injection_point();
   add_instance();
   ++move_counter;
 }
 
-element::~element() {
+Element::~Element() {
   delete_instance();
 }
 
-element& element::operator=(const element& c) {
+Element& Element::operator=(const Element& c) { // NOLINT
   assert_exists();
   fault_injection_point();
 
@@ -34,38 +42,42 @@ element& element::operator=(const element& c) {
   return *this;
 }
 
-element& element::operator=(element&& c) {
+Element& Element::operator=(Element&& c) {
   assert_exists();
-  fault_injection_point();
+  [[maybe_unused]] auto val = move_throw_disabled() || fault_injection_point();
 
   ++move_counter;
   data = std::exchange(c.data, -1);
   return *this;
 }
 
-element::operator int() const {
+Element::operator int() const {
   assert_exists();
   fault_injection_point();
 
   return data;
 }
 
-void element::reset_counters() {
+void swap(Element& lhs, Element& rhs) { // NOLINT
+  [[maybe_unused]] auto val = move_throw_disabled() || fault_injection_point();
+  std::swap(lhs.data, rhs.data);
+}
+
+void Element::reset_counters() {
   copy_counter = 0;
   move_counter = 0;
 }
 
-size_t element::get_copy_counter() {
+size_t Element::get_copy_counter() {
   return copy_counter;
 }
 
-size_t element::get_move_counter() {
+size_t Element::get_move_counter() {
   return move_counter;
 }
 
-void element::add_instance() {
-  fault_injection_point();
-  fault_injection_disable dg;
+void Element::add_instance() {
+  FaultInjectionDisable dg;
   auto p = instances.insert(this);
   if (!p.second) {
     std::stringstream ss;
@@ -75,16 +87,18 @@ void element::add_instance() {
   }
 }
 
-void element::delete_instance() {
-  fault_injection_disable dg;
+void Element::delete_instance() {
+  FaultInjectionDisable dg;
   size_t erased = instances.erase(this);
   if (erased != 1) {
-    FAIL() << "Attempt of destroying non-existing object at address " << static_cast<void*>(this) << '\n';
+    std::stringstream ss;
+    ss << "Attempt of destroying non-existing object at address " << static_cast<void*>(this) << '\n';
+    FAIL(ss.str());
   }
 }
 
-void element::assert_exists() const {
-  fault_injection_disable dg;
+void Element::assert_exists() const {
+  FaultInjectionDisable dg;
   bool exists = instances.find(this) != instances.end();
   if (!exists) {
     std::stringstream ss;
@@ -93,15 +107,17 @@ void element::assert_exists() const {
   }
 }
 
-std::set<const element*> element::instances;
+std::set<const Element*> Element::instances;
 
-element::no_new_instances_guard::no_new_instances_guard()
+Element::NoNewInstancesGuard::NoNewInstancesGuard()
     : old_instances(instances) {}
 
-element::no_new_instances_guard::~no_new_instances_guard() {
-  EXPECT_EQ(old_instances, instances);
+Element::NoNewInstancesGuard::~NoNewInstancesGuard() {
+  CHECK(old_instances == instances);
 }
 
-void element::no_new_instances_guard::expect_no_instances() {
-  EXPECT_EQ(old_instances, instances);
+void Element::NoNewInstancesGuard::expect_no_instances() {
+  CHECK(old_instances == instances);
 }
+
+} // namespace ct::test

@@ -4,15 +4,15 @@
 #include <iostream>
 #include <vector>
 
-namespace {
+namespace ct::test {
 
 void* injected_allocate(size_t count) {
   if (should_inject_fault()) {
     throw std::bad_alloc();
   }
 
-  void* ptr = malloc(count);
-  if (!ptr) {
+  void* ptr = malloc(count); // NOLINT
+  if (ptr == nullptr) {
     throw std::bad_alloc();
   }
 
@@ -20,43 +20,45 @@ void* injected_allocate(size_t count) {
 }
 
 void injected_deallocate(void* ptr) {
-  free(ptr);
+  free(ptr); // NOLINT
 }
 
 template <typename T>
-struct fault_injection_allocator {
+struct FaultInjectionAllocator {
   using value_type = T;
 
-  fault_injection_allocator() = default;
+  FaultInjectionAllocator() = default;
 
   template <typename U>
-  fault_injection_allocator(const fault_injection_allocator<U>&) {}
+  FaultInjectionAllocator(const FaultInjectionAllocator<U>&) {} // NOLINT
 
   template <typename U>
-  fault_injection_allocator& operator=(const fault_injection_allocator<U>&) {}
+  FaultInjectionAllocator& operator=(const FaultInjectionAllocator<U>&) {} // NOLINT
 
   T* allocate(size_t count) {
     return static_cast<T*>(injected_allocate(count * sizeof(T)));
   }
 
-  void deallocate(void* ptr, size_t) {
+  void deallocate(void* ptr, size_t /*sz*/) {
     injected_deallocate(ptr);
   }
 };
 
-struct fault_injection_context {
-  std::vector<size_t, fault_injection_allocator<size_t>> skip_ranges;
+struct FaultInjectionContext {
+  std::vector<size_t, FaultInjectionAllocator<size_t>> skip_ranges;
   size_t error_index = 0;
   size_t skip_index = 0;
   bool fault_registered = false;
 };
 
 thread_local bool disabled = false;
-thread_local fault_injection_context* context = nullptr;
+thread_local bool _move_throw_disabled = false;
+
+thread_local FaultInjectionContext* context = nullptr;
 
 void dump_state() {
-#if 0
-  fault_injection_disable dg;
+#if 0 // NOLINT
+  FaultInjectionDisable dg;
   std::cout << "skip_ranges: {";
   if (!context->skip_ranges.empty()) {
     std::cout << context->skip_ranges[0];
@@ -69,10 +71,8 @@ void dump_state() {
 #endif
 }
 
-} // namespace
-
 bool should_inject_fault() {
-  if (!context) {
+  if (context == nullptr) {
     return false;
   }
 
@@ -82,7 +82,7 @@ bool should_inject_fault() {
 
   assert(context->error_index <= context->skip_ranges.size());
   if (context->error_index == context->skip_ranges.size()) {
-    fault_injection_disable dg;
+    FaultInjectionDisable dg;
     ++context->error_index;
     context->skip_ranges.push_back(0);
     context->fault_registered = true;
@@ -102,22 +102,27 @@ bool should_inject_fault() {
   return false;
 }
 
-void fault_injection_point() {
+bool move_throw_disabled() {
+  return _move_throw_disabled;
+}
+
+[[maybe_unused]] bool fault_injection_point() {
   if (should_inject_fault()) {
-    fault_injection_disable dg;
-    throw injected_fault("injected fault");
+    FaultInjectionDisable dg;
+    throw InjectedFault("injected fault");
   }
+  return true;
 }
 
 void faulty_run(const std::function<void()>& f) {
   assert(!context);
-  fault_injection_context ctx;
+  FaultInjectionContext ctx;
   context = &ctx;
   for (;;) {
     try {
       f();
     } catch (...) {
-      fault_injection_disable dg;
+      FaultInjectionDisable dg;
       dump_state();
       ctx.skip_ranges.resize(ctx.error_index);
       ++ctx.skip_ranges.back();
@@ -133,39 +138,62 @@ void faulty_run(const std::function<void()>& f) {
   context = nullptr;
 }
 
-fault_injection_disable::fault_injection_disable()
+FaultInjectionDisable::FaultInjectionDisable()
     : was_disabled(disabled) {
   disabled = true;
 }
 
-void fault_injection_disable::reset() {
+void FaultInjectionDisable::reset() const {
   disabled = was_disabled;
 }
 
-fault_injection_disable::~fault_injection_disable() {
+FaultInjectionDisable::~FaultInjectionDisable() {
   reset();
 }
 
+FaultInjectionMoveThrowDisable::FaultInjectionMoveThrowDisable()
+    : was_enabled(_move_throw_disabled) {
+  _move_throw_disabled = true;
+}
+
+void FaultInjectionMoveThrowDisable::reset() const {
+  _move_throw_disabled = was_enabled;
+}
+
+FaultInjectionMoveThrowDisable::~FaultInjectionMoveThrowDisable() {
+  reset();
+}
+
+} // namespace ct::test
+
 void* operator new(size_t count) {
-  return injected_allocate(count);
+  return ct::test::injected_allocate(count);
+}
+
+void* operator new(size_t count, std::align_val_t /*al*/) {
+  return ct::test::injected_allocate(count);
 }
 
 void* operator new[](size_t count) {
-  return injected_allocate(count);
+  return ct::test::injected_allocate(count);
 }
 
 void operator delete(void* ptr) noexcept {
-  injected_deallocate(ptr);
+  ct::test::injected_deallocate(ptr);
+}
+
+void operator delete(void* ptr, std::align_val_t /*al*/) noexcept {
+  ct::test::injected_deallocate(ptr);
 }
 
 void operator delete[](void* ptr) noexcept {
-  injected_deallocate(ptr);
+  ct::test::injected_deallocate(ptr);
 }
 
-void operator delete(void* ptr, size_t) noexcept {
-  injected_deallocate(ptr);
+void operator delete(void* ptr, size_t /*sz*/) noexcept {
+  ct::test::injected_deallocate(ptr);
 }
 
-void operator delete[](void* ptr, size_t) noexcept {
-  injected_deallocate(ptr);
+void operator delete[](void* ptr, size_t /*sz*/) noexcept {
+  ct::test::injected_deallocate(ptr);
 }

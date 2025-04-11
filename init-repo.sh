@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Данный скрипт следует вызвать после первого клонирования
 # репозитория. Подробная информация:
 # https://cpp-kt.github.io/course/instruction.html
@@ -23,7 +23,7 @@ if [[ -n $(git status --untracked-files=no --porcelain) ]]; then
   exit 1
 fi
 
-source ci-extra/set-upstream.sh
+source .github/constants.env
 git remote add upstream "git@github.com:$UPSTREAM_REPO.git"
 
 git fetch upstream

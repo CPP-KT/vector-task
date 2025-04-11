@@ -3,24 +3,43 @@
 #include <functional>
 #include <stdexcept>
 
-struct injected_fault : std::runtime_error {
+namespace ct::test {
+
+struct InjectedFault : std::runtime_error {
   using runtime_error::runtime_error;
 };
 
 bool should_inject_fault();
-void fault_injection_point();
+bool move_throw_disabled();
+bool fault_injection_point();
 void faulty_run(const std::function<void()>& f);
 
-struct fault_injection_disable {
-  fault_injection_disable();
+struct FaultInjectionDisable {
+  FaultInjectionDisable();
 
-  void reset();
+  void reset() const;
 
-  fault_injection_disable(const fault_injection_disable&) = delete;
-  fault_injection_disable& operator=(const fault_injection_disable&) = delete;
+  FaultInjectionDisable(const FaultInjectionDisable&) = delete;
+  FaultInjectionDisable& operator=(const FaultInjectionDisable&) = delete;
 
-  ~fault_injection_disable();
+  ~FaultInjectionDisable();
 
 private:
   bool was_disabled;
 };
+
+struct FaultInjectionMoveThrowDisable {
+  FaultInjectionMoveThrowDisable();
+
+  void reset() const;
+
+  FaultInjectionMoveThrowDisable(const FaultInjectionMoveThrowDisable&) = delete;
+  FaultInjectionMoveThrowDisable& operator=(const FaultInjectionMoveThrowDisable&) = delete;
+
+  ~FaultInjectionMoveThrowDisable();
+
+private:
+  bool was_enabled;
+};
+
+} // namespace ct::test
