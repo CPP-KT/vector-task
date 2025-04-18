@@ -5,10 +5,6 @@
 
 namespace ct::test {
 
-struct Element;
-
-void swap(Element&, Element&); // NOLINT
-
 struct Element {
   struct NoNewInstancesGuard;
 

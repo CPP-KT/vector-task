@@ -9,12 +9,13 @@
 #include <string>
 #include <utility>
 
-template class ct::Vector<int>;
-template class ct::Vector<ct::test::Element>;
-template class ct::Vector<std::string>;
-template class ct::Vector<ct::test::OrderedElement>;
+namespace ct {
+template class Vector<int>;
+template class Vector<test::Element>;
+template class Vector<std::string>;
+template class Vector<test::OrderedElement>;
 
-namespace ct::test {
+namespace test {
 
 template <class Actual, class Expected>
 void expect_eq(const Actual& actual, const Expected& expected) {
@@ -188,7 +189,7 @@ TEST_CASE_METHOD(CorrectnessTest, "push_back_from_self") {
     a.push_back(a[0]);
   }
 
-  CHECK(N <= a.size());
+  CHECK(N == a.size());
   CHECK(N <= a.capacity());
 
   for (int i = 0; i < N; ++i) {
@@ -206,7 +207,7 @@ TEST_CASE_METHOD(CorrectnessTest, "push_back_xvalue_from_self_no_reallocation") 
     a.push_back(std::move(a[i - 1]));
   }
 
-  CHECK(N <= a.size());
+  CHECK(N == a.size());
   CHECK(N <= a.capacity());
   for (int i = 0; i < N - 1; ++i) {
     REQUIRE(-1 == a[i]);
@@ -267,7 +268,7 @@ TEST_CASE_METHOD(CorrectnessTest, "push_back_xvalue_from_self_reallocation") {
     a.push_back(std::move(a[i - 1]));
   }
 
-  CHECK(N <= a.size());
+  CHECK(N == a.size());
   CHECK(N <= a.capacity());
   for (int i = 0; i < N - 1; ++i) {
     REQUIRE(-1 == a[i]);
@@ -284,7 +285,7 @@ TEST_CASE_METHOD(CorrectnessTest, "push_back_xvalue_from_self_reallocation_noexc
     a.push_back(std::move(a[i - 1]));
   }
 
-  CHECK(N <= a.size());
+  CHECK(N == a.size());
   CHECK(N <= a.capacity());
   for (int i = 0; i < N - 1; ++i) {
     REQUIRE(-1 == a[i]);
@@ -1157,10 +1158,30 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_throw") {
     for (int i = 0; i < N; ++i) {
       a.push_back(2 * i + 1);
     }
+    Element x = 42;
+
     dg.reset();
 
     StrongExceptionSafetyGuard sg(a);
-    a.push_back(42);
+    a.push_back(x);
+  });
+}
+
+TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_push_back_from_self_throw") {
+  static constexpr int N = 10;
+
+  faulty_run([] {
+    FaultInjectionDisable dg;
+    Vector<Element> a;
+    a.reserve(N);
+    REQUIRE(N == a.capacity());
+
+    for (int i = 0; i < N; ++i) {
+      a.push_back(2 * i + 1);
+    }
+    dg.reset();
+
+    a.push_back(std::move(a[0]));
   });
 }
 
@@ -1181,6 +1202,25 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_throw_push_back_from_self_no
     FaultInjectionMoveThrowDisable mdg;
     StrongExceptionSafetyGuard sg(a);
     a.push_back(std::move(a[0]));
+  });
+}
+
+TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_insert_throw") {
+  static constexpr int N = 500;
+
+  faulty_run([] {
+    FaultInjectionDisable dg;
+    Vector<Element> a;
+    a.reserve(N);
+    REQUIRE(N == a.capacity());
+
+    for (int i = 0; i < N; ++i) {
+      a.push_back(2 * i + 1);
+    }
+    Element x = 42;
+    dg.reset();
+
+    [[maybe_unused]] auto it = a.insert(std::as_const(a).begin(), std::move(x));
   });
 }
 
@@ -1296,4 +1336,5 @@ TEST_CASE_METHOD(CorrectnessTest, "member_aliases") {
   CHECK((std::is_same<const Element*, Vector<Element>::ConstIterator>::value));
 }
 
-} // namespace ct::test
+} // namespace test
+} // namespace ct
