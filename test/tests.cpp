@@ -267,6 +267,19 @@ TEST_CASE_METHOD(CorrectnessTest, "`push_back` xvalue from self with reallocatio
   REQUIRE(a[N - 1] == 42);
 }
 
+TEST_CASE_METHOD(CorrectnessTest, "`push_back` lvalue from self with reallocation and noexcept move") {
+  static constexpr int N = 500;
+
+  Vector<ElementWithNonThrowingMove> a;
+  a.reserve(N);
+  for (int i = 0; i < N; ++i) {
+    a.push_back(2 * i + 1);
+  }
+
+  a.push_back(a[0]);
+  REQUIRE(a.back() == a[0]);
+}
+
 TEST_CASE_METHOD(CorrectnessTest, "subscripting") {
   static constexpr int N = 500;
 
@@ -1192,7 +1205,7 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `push_back` from self") {
   });
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `push_back` from self with reallocation and noexcept move") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `push_back` xvalue from self with reallocation and noexcept move") {
   static constexpr int N = 10;
 
   faulty_run([] {
@@ -1209,6 +1222,23 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `push_back` from self with reall
     FaultInjectionMoveThrowDisable mdg;
     StrongExceptionSafetyGuard sg(a);
     a.push_back(std::move(a[0]));
+  });
+}
+
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `push_back` lvalue from self with reallocation and noexcept move") {
+  static constexpr int N = 500;
+  faulty_run([] {
+    FaultInjectionDisable dg;
+    Vector<ElementWithNonThrowingMove> a;
+    a.reserve(N);
+    for (int i = 0; i < N; ++i) {
+      a.push_back(2 * i + 1);
+    }
+    dg.reset();
+
+    FaultInjectionMoveThrowDisable mdg;
+    StrongExceptionSafetyGuard sg(a);
+    a.push_back(a[0]);
   });
 }
 

@@ -9,20 +9,20 @@ struct Element {
   struct NoNewInstancesGuard;
 
   Element() = delete;
-  Element(int data); 
+  Element(int data);
   Element(const Element& other);
   Element(Element&& other);
   ~Element();
 
   Element& operator=(const Element& c);
   Element& operator=(Element&& c);
-  operator int() const; 
+  operator int() const;
 
   static void reset_counters();
   static size_t get_copy_counter();
   static size_t get_move_counter();
 
-  friend void swap(Element&, Element&); 
+  friend void swap(Element&, Element&);
 
 private:
   void add_instance();
@@ -54,7 +54,7 @@ private:
 struct ElementWithNonThrowingMove : Element {
   using Element::Element;
 
-  ElementWithNonThrowingMove(const ElementWithNonThrowingMove& other) noexcept = default;
+  ElementWithNonThrowingMove(const ElementWithNonThrowingMove& other) = default;
   ElementWithNonThrowingMove(ElementWithNonThrowingMove&& other) noexcept = default;
 
   ElementWithNonThrowingMove& operator=(const ElementWithNonThrowingMove& other) = default;

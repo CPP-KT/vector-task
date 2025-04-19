@@ -1,11 +1,14 @@
 #pragma once
 
 #include <cstddef>
+#include <type_traits>
 
 namespace ct {
 
 template <typename T>
 class Vector {
+  static_assert(std::is_nothrow_move_constructible_v<T> || std::is_copy_constructible_v<T>);
+
 public:
   using ValueType = T;
 
