@@ -11,7 +11,7 @@ struct InjectedFault : std::runtime_error {
 
 bool should_inject_fault();
 bool move_throw_disabled();
-bool fault_injection_point();
+void fault_injection_point();
 void faulty_run(const std::function<void()>& f);
 
 struct FaultInjectionDisable {
@@ -39,7 +39,7 @@ struct FaultInjectionMoveThrowDisable {
   ~FaultInjectionMoveThrowDisable();
 
 private:
-  bool was_enabled;
+  bool was_disabled;
 };
 
 } // namespace ct::test

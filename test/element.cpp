@@ -24,7 +24,9 @@ Element::Element(const Element& other)
 
 Element::Element(Element&& other)
     : data(std::exchange(other.data, -1)) {
-  [[maybe_unused]] auto val = move_throw_disabled() || fault_injection_point();
+  if (!move_throw_disabled()) {
+    fault_injection_point();
+  }
   add_instance();
   ++move_counter;
 }
@@ -33,7 +35,7 @@ Element::~Element() {
   delete_instance();
 }
 
-Element& Element::operator=(const Element& c) { // NOLINT
+Element& Element::operator=(const Element& c) {
   assert_exists();
   fault_injection_point();
 
@@ -44,8 +46,9 @@ Element& Element::operator=(const Element& c) { // NOLINT
 
 Element& Element::operator=(Element&& c) {
   assert_exists();
-  [[maybe_unused]] auto val = move_throw_disabled() || fault_injection_point();
-
+  if (!move_throw_disabled()) {
+    fault_injection_point();
+  }
   ++move_counter;
   data = std::exchange(c.data, -1);
   return *this;
@@ -58,8 +61,10 @@ Element::operator int() const {
   return data;
 }
 
-void swap(Element& lhs, Element& rhs) { // NOLINT
-  [[maybe_unused]] auto val = move_throw_disabled() || fault_injection_point();
+void swap(Element& lhs, Element& rhs) {
+  if (!move_throw_disabled()) {
+    fault_injection_point();
+  }
   std::swap(lhs.data, rhs.data);
 }
 

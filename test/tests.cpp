@@ -4,54 +4,19 @@
 #include "vector.h"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_range_equals.hpp>
 
-#include <sstream>
 #include <string>
 #include <utility>
 
 namespace ct {
+
 template class Vector<int>;
 template class Vector<test::Element>;
 template class Vector<std::string>;
 template class Vector<test::OrderedElement>;
 
 namespace test {
-
-template <class Actual, class Expected>
-void expect_eq(const Actual& actual, const Expected& expected) {
-  FaultInjectionDisable dg;
-
-  CHECK(expected.size() == actual.size());
-
-  if (!std::equal(expected.begin(), expected.end(), actual.begin(), actual.end())) {
-    std::stringstream out;
-    out << '{';
-
-    bool add_comma = false;
-    for (const auto& e : expected) {
-      if (add_comma) {
-        out << ", ";
-      }
-      out << e;
-      add_comma = true;
-    }
-
-    out << "} != {";
-
-    add_comma = false;
-    for (const auto& e : actual) {
-      if (add_comma) {
-        out << ", ";
-      }
-      out << e;
-      add_comma = true;
-    }
-
-    out << "}\n";
-
-    FAIL(out.str());
-  }
-}
 
 template <typename C>
 class StrongExceptionSafetyGuard {
@@ -64,7 +29,8 @@ public:
 
   ~StrongExceptionSafetyGuard() {
     if (std::uncaught_exceptions() > 0) {
-      expect_eq(expected, ref);
+      FaultInjectionDisable dg{};
+      REQUIRE_THAT(expected, Catch::Matchers::RangeEquals(ref));
     }
   }
 
@@ -108,9 +74,9 @@ protected:
   void expect_empty_storage(const Vector<Element>& a) {
     instances_guard.expect_no_instances();
     CHECK(a.empty());
-    CHECK(0 == a.size());
-    CHECK(0 == a.capacity());
-    CHECK(nullptr == a.data());
+    CHECK(a.size() == 0);
+    CHECK(a.capacity() == 0);
+    CHECK(a.data() == nullptr);
   }
 
   Element::NoNewInstancesGuard instances_guard;
@@ -122,12 +88,12 @@ class ExceptionSafetyTest : public BaseTest {};
 
 class PerformanceTest : public BaseTest {};
 
-TEST_CASE_METHOD(CorrectnessTest, "default_ctor") {
+TEST_CASE_METHOD(CorrectnessTest, "default ctor") {
   Vector<Element> a;
   expect_empty_storage(a);
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "non_throwing_default_ctor") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "non-throwing default ctor") {
   faulty_run([] {
     try {
       Vector<Element> a;
@@ -139,7 +105,7 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "non_throwing_default_ctor") {
   });
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "push_back") {
+TEST_CASE_METHOD(CorrectnessTest, "`push_back`") {
   static constexpr int N = 5000;
 
   Vector<Element> a;
@@ -147,20 +113,22 @@ TEST_CASE_METHOD(CorrectnessTest, "push_back") {
     a.push_back(2 * i + 1);
   }
 
-  CHECK(N == a.size());
-  CHECK(N <= a.capacity());
+  CHECK(a.size() == N);
+  CHECK(a.capacity() >= N);
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "push_back_throw") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing lvalue `push_back`") {
   static constexpr int N = 10;
 
   faulty_run([] {
     Vector<Element> a;
     for (int i = 0; i < N; ++i) {
+      CAPTURE(i);
       Element x = 2 * i + 1;
       StrongExceptionSafetyGuard sg_1(a);
       StrongExceptionSafetyGuard sg_2(x);
@@ -169,18 +137,19 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "push_back_throw") {
   });
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "push_back_xvalue_throw") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing xvalue `push_back`") {
   static constexpr int N = 10;
   faulty_run([] {
     Vector<Element> a;
     for (int i = 0; i < N; ++i) {
+      CAPTURE(i);
       Element x = 2 * i + 1;
       a.push_back(std::move(x));
     }
   });
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "push_back_from_self") {
+TEST_CASE_METHOD(CorrectnessTest, "`push_back` from self") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -189,15 +158,16 @@ TEST_CASE_METHOD(CorrectnessTest, "push_back_from_self") {
     a.push_back(a[0]);
   }
 
-  CHECK(N == a.size());
-  CHECK(N <= a.capacity());
+  CHECK(a.size() == N);
+  CHECK(a.capacity() >= N);
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(42 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 42);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "push_back_xvalue_from_self_no_reallocation") {
+TEST_CASE_METHOD(CorrectnessTest, "`push_back` xvalue from self with no reallocation") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -210,25 +180,27 @@ TEST_CASE_METHOD(CorrectnessTest, "push_back_xvalue_from_self_no_reallocation") 
   CHECK(N == a.size());
   CHECK(N <= a.capacity());
   for (int i = 0; i < N - 1; ++i) {
-    REQUIRE(-1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == -1);
   }
-  REQUIRE(42 == a[N - 1]);
+  REQUIRE(a[N - 1] == 42);
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "push_back_from_self_throw") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `push_back` lvalue from self") {
   static constexpr int N = 10;
 
   faulty_run([] {
     Vector<Element> a;
     a.push_back(42);
     for (int i = 1; i < N; ++i) {
+      CAPTURE(i);
       StrongExceptionSafetyGuard sg(a);
       a.push_back(a[0]);
     }
   });
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "push_back_reallocation") {
+TEST_CASE_METHOD(CorrectnessTest, "`push_back` with reallocation") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -240,10 +212,10 @@ TEST_CASE_METHOD(CorrectnessTest, "push_back_reallocation") {
   Element x = N;
   Element::reset_counters();
   a.push_back(x);
-  REQUIRE(N + 1 == Element::get_copy_counter());
+  REQUIRE(Element::get_copy_counter() == N + 1);
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "push_back_reallocation_noexcept") {
+TEST_CASE_METHOD(CorrectnessTest, "`push_back` with reallocation and noexcept move") {
   static constexpr int N = 500;
 
   Vector<ElementWithNonThrowingMove> a;
@@ -259,7 +231,7 @@ TEST_CASE_METHOD(CorrectnessTest, "push_back_reallocation_noexcept") {
   REQUIRE(Element::get_move_counter() <= 501);
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "push_back_xvalue_from_self_reallocation") {
+TEST_CASE_METHOD(CorrectnessTest, "`push_back` xvalue from self with reallocation") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -268,15 +240,16 @@ TEST_CASE_METHOD(CorrectnessTest, "push_back_xvalue_from_self_reallocation") {
     a.push_back(std::move(a[i - 1]));
   }
 
-  CHECK(N == a.size());
-  CHECK(N <= a.capacity());
+  CHECK(a.size() == N);
+  CHECK(a.capacity() >= N);
   for (int i = 0; i < N - 1; ++i) {
-    REQUIRE(-1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == -1);
   }
-  REQUIRE(42 == a[N - 1]);
+  REQUIRE(a[N - 1] == 42);
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "push_back_xvalue_from_self_reallocation_noexcept") {
+TEST_CASE_METHOD(CorrectnessTest, "`push_back` xvalue from self with reallocation and noexcept move") {
   static constexpr int N = 500;
 
   Vector<ElementWithNonThrowingMove> a;
@@ -285,12 +258,13 @@ TEST_CASE_METHOD(CorrectnessTest, "push_back_xvalue_from_self_reallocation_noexc
     a.push_back(std::move(a[i - 1]));
   }
 
-  CHECK(N == a.size());
-  CHECK(N <= a.capacity());
+  CHECK(a.size() == N);
+  CHECK(a.capacity() >= N);
   for (int i = 0; i < N - 1; ++i) {
-    REQUIRE(-1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == -1);
   }
-  REQUIRE(42 == a[N - 1]);
+  REQUIRE(a[N - 1] == 42);
 }
 
 TEST_CASE_METHOD(CorrectnessTest, "subscripting") {
@@ -302,17 +276,19 @@ TEST_CASE_METHOD(CorrectnessTest, "subscripting") {
   }
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 
   const Vector<Element>& ca = a;
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * i + 1 == ca[i]);
+    CAPTURE(i);
+    REQUIRE(ca[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "data") {
+TEST_CASE_METHOD(CorrectnessTest, "`data`") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -323,102 +299,108 @@ TEST_CASE_METHOD(CorrectnessTest, "data") {
   {
     Element* ptr = a.data();
     for (int i = 0; i < N; ++i) {
-      REQUIRE(2 * i + 1 == ptr[i]);
+      CAPTURE(i);
+      REQUIRE(ptr[i] == 2 * i + 1);
     }
   }
 
   {
     const Element* cptr = std::as_const(a).data();
     for (int i = 0; i < N; ++i) {
-      REQUIRE(2 * i + 1 == cptr[i]);
+      CAPTURE(i);
+      REQUIRE(cptr[i] == 2 * i + 1);
     }
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "front_back") {
+TEST_CASE_METHOD(CorrectnessTest, "`front` and `back`") {
   static constexpr int N = 500;
   Vector<Element> a;
   for (int i = 0; i < N; ++i) {
     a.push_back(2 * i + 1);
   }
 
-  CHECK(1 == a.front());
-  CHECK(1 == std::as_const(a).front());
+  CHECK(a.front() == 1);
+  CHECK(std::as_const(a).front() == 1);
 
   CHECK(&a[0] == &a.front());
   CHECK(&a[0] == &std::as_const(a).front());
 
-  CHECK(2 * N - 1 == a.back());
-  CHECK(2 * N - 1 == std::as_const(a).back());
+  CHECK(a.back() == 2 * N - 1);
+  CHECK(std::as_const(a).back() == 2 * N - 1);
 
   CHECK(&a[N - 1] == &a.back());
   CHECK(&a[N - 1] == &std::as_const(a).back());
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "reserve") {
+TEST_CASE_METHOD(CorrectnessTest, "`reserve`") {
   static constexpr int N = 500, M = 100, K = 5000;
 
   Vector<Element> a;
   a.reserve(N);
-  CHECK(0 == a.size());
-  CHECK(N == a.capacity());
+  CHECK(a.size() == 0);
+  CHECK(a.capacity() == N);
 
   for (int i = 0; i < M; ++i) {
     a.push_back(2 * i + 1);
   }
-  CHECK(M == a.size());
-  CHECK(N == a.capacity());
+  CHECK(a.size() == M);
+  CHECK(a.capacity() == N);
 
   for (int i = 0; i < M; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 
   a.reserve(K);
-  CHECK(M == a.size());
-  CHECK(K == a.capacity());
+  CHECK(a.size() == M);
+  CHECK(a.capacity() == K);
 
   for (int i = 0; i < M; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "reserve_superfluous") {
+TEST_CASE_METHOD(CorrectnessTest, "superfluous `reserve`") {
   static constexpr int N = 5000, M = 100, K = 500;
 
   Vector<Element> a;
   a.reserve(N);
-  REQUIRE(0 == a.size());
-  REQUIRE(N == a.capacity());
+  REQUIRE(a.size() == 0);
+  REQUIRE(a.capacity() == N);
 
   for (int i = 0; i < M; ++i) {
     a.push_back(2 * i + 1);
   }
-  REQUIRE(M == a.size());
-  REQUIRE(N == a.capacity());
+  REQUIRE(a.size() == M);
+  REQUIRE(a.capacity() == N);
 
   for (int i = 0; i < M; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 
   Element* old_data = a.data();
 
   a.reserve(K);
-  CHECK(M == a.size());
-  CHECK(N == a.capacity());
-  CHECK(old_data == a.data());
+  CHECK(a.size() == M);
+  CHECK(a.capacity() == N);
+  CHECK(a.data() == old_data);
 
   for (int i = 0; i < M; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "reserve_empty") {
+TEST_CASE_METHOD(CorrectnessTest, "empty `reserve`") {
   Vector<Element> a;
   a.reserve(0);
   expect_empty_storage(a);
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "reserve_throw") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `reserve`") {
   static constexpr int N = 10;
 
   faulty_run([] {
@@ -436,22 +418,23 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "reserve_throw") {
   });
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "reserve_noexcept") {
+TEST_CASE_METHOD(CorrectnessTest, "`reserve` with noexcept move") {
   static constexpr int N = 500, M = 100, K = 5000;
 
   Vector<ElementWithNonThrowingMove> a;
   a.reserve(N);
-  CHECK(0 == a.size());
-  CHECK(N == a.capacity());
+  CHECK(a.size() == 0);
+  CHECK(a.capacity() == N);
 
   for (int i = 0; i < M; ++i) {
     a.push_back(2 * i + 1);
   }
-  CHECK(M == a.size());
-  CHECK(N == a.capacity());
+  CHECK(a.size() == M);
+  CHECK(a.capacity() == N);
 
   for (int i = 0; i < M; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 
   Element::reset_counters();
@@ -460,70 +443,73 @@ TEST_CASE_METHOD(CorrectnessTest, "reserve_noexcept") {
   REQUIRE(Element::get_copy_counter() == 0);
   REQUIRE(Element::get_move_counter() <= 100);
 
-  CHECK(M == a.size());
-  CHECK(K == a.capacity());
+  CHECK(a.size() == M);
+  CHECK(a.capacity() == K);
 
   for (int i = 0; i < M; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "shrink_to_fit") {
+TEST_CASE_METHOD(CorrectnessTest, "`shrink_to_fit`") {
   static constexpr int N = 500, M = 100;
 
   Vector<Element> a;
   a.reserve(N);
-  REQUIRE(0 == a.size());
-  REQUIRE(N == a.capacity());
+  CHECK(a.size() == 0);
+  CHECK(a.capacity() == N);
 
   for (int i = 0; i < M; ++i) {
     a.push_back(2 * i + 1);
   }
-  REQUIRE(M == a.size());
-  REQUIRE(N == a.capacity());
+  CHECK(a.size() == M);
+  CHECK(a.capacity() == N);
 
   for (int i = 0; i < M; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 
   a.shrink_to_fit();
-  CHECK(M == a.size());
-  CHECK(M == a.capacity());
+  CHECK(a.size() == M);
+  CHECK(a.capacity() == M);
 
   for (int i = 0; i < M; ++i) {
+    CAPTURE(i);
     REQUIRE(2 * i + 1 == a[i]);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "shrink_to_fit_superfluous") {
+TEST_CASE_METHOD(CorrectnessTest, "superfluous `shrink_to_fit`") {
   static constexpr int N = 500;
 
   Vector<Element> a;
   a.reserve(N);
-  REQUIRE(0 == a.size());
-  REQUIRE(N == a.capacity());
+  CHECK(a.size() == 0);
+  CHECK(a.capacity() == N);
 
   for (int i = 0; i < N; ++i) {
     a.push_back(2 * i + 1);
   }
-  CHECK(N == a.size());
+  CHECK(a.size() == N);
 
   size_t old_capacity = a.capacity();
   Element* old_data = a.data();
 
   a.shrink_to_fit();
-  CHECK(N == a.size());
-  CHECK(old_capacity == a.capacity());
-  CHECK(old_data == a.data());
+  CHECK(a.size() == N);
+  CHECK(a.capacity() == old_capacity);
+  CHECK(a.data() == old_data);
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "shrink_to_fit_empty") {
+TEST_CASE_METHOD(CorrectnessTest, "empty `shrink_to_fit`") {
   Vector<Element> a;
   a.shrink_to_fit();
   expect_empty_storage(a);
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "shrink_to_fit_throw") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `shrink_to_fit`") {
   static constexpr int N = 10;
 
   faulty_run([] {
@@ -541,22 +527,23 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "shrink_to_fit_throw") {
   });
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "shrink_to_fit_noexcept") {
+TEST_CASE_METHOD(CorrectnessTest, "`shrink_to_fit` with noexcept move") {
   static constexpr int N = 500, M = 100;
 
   Vector<ElementWithNonThrowingMove> a;
   a.reserve(N);
-  REQUIRE(0 == a.size());
-  REQUIRE(N == a.capacity());
+  REQUIRE(a.size() == 0);
+  REQUIRE(a.capacity() == N);
 
   for (int i = 0; i < M; ++i) {
     a.push_back(2 * i + 1);
   }
-  REQUIRE(M == a.size());
-  REQUIRE(N == a.capacity());
+  REQUIRE(a.size() == M);
+  REQUIRE(a.capacity() == N);
 
   for (int i = 0; i < M; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 
   Element::reset_counters();
@@ -564,22 +551,23 @@ TEST_CASE_METHOD(CorrectnessTest, "shrink_to_fit_noexcept") {
   REQUIRE(Element::get_copy_counter() == 0);
   REQUIRE(Element::get_move_counter() <= 100);
 
-  CHECK(M == a.size());
-  CHECK(M == a.capacity());
+  CHECK(a.size() == M);
+  CHECK(a.capacity() == M);
 
   for (int i = 0; i < M; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "clear") {
+TEST_CASE_METHOD(CorrectnessTest, "`clear`") {
   static constexpr int N = 500;
 
   Vector<Element> a;
   for (int i = 0; i < N; ++i) {
     a.push_back(2 * i + 1);
   }
-  REQUIRE(N == a.size());
+  REQUIRE(a.size() == N);
 
   size_t old_capacity = a.capacity();
   Element* old_data = a.data();
@@ -587,12 +575,12 @@ TEST_CASE_METHOD(CorrectnessTest, "clear") {
   a.clear();
   instances_guard.expect_no_instances();
   CHECK(a.empty());
-  CHECK(0 == a.size());
-  CHECK(old_capacity == a.capacity());
-  CHECK(old_data == a.data());
+  CHECK(a.size() == 0);
+  CHECK(a.capacity() == old_capacity);
+  CHECK(a.data() == old_data);
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "non_throwing_clear") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "non-throwing `clear`") {
   faulty_run([] {
     FaultInjectionDisable dg;
     Vector<Element> a;
@@ -610,7 +598,7 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "non_throwing_clear") {
   });
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "copy_ctor") {
+TEST_CASE_METHOD(CorrectnessTest, "copy ctor") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -621,14 +609,14 @@ TEST_CASE_METHOD(CorrectnessTest, "copy_ctor") {
   Vector<Element> b = a;
   CHECK(a.size() == b.size());
   CHECK(a.size() == b.capacity());
-  CHECK(a.data() != b.data());
+  CHECK_FALSE(a.data() == b.data());
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * i + 1 == b[i]);
+    REQUIRE(b[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "move_ctor") {
+TEST_CASE_METHOD(CorrectnessTest, "move ctor") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -640,23 +628,24 @@ TEST_CASE_METHOD(CorrectnessTest, "move_ctor") {
 
   Element::reset_counters();
   Vector<Element> b = std::move(a);
-  REQUIRE(0 == Element::get_copy_counter());
+  REQUIRE(Element::get_copy_counter() == 0);
 
-  CHECK(N == b.size());
-  CHECK(N <= b.capacity());
-  CHECK(a_data == b.data());
-  CHECK(a.data() != b.data());
+  CHECK(b.size() == N);
+  CHECK(b.capacity() >= N);
+  CHECK(b.data() == a_data);
+  CHECK_FALSE(a.data() == b.data());
 
-  CHECK(nullptr == a.data());
-  CHECK(0 == a.size());
-  CHECK(0 == a.capacity());
+  CHECK(a.data() == nullptr);
+  CHECK(a.size() == 0);
+  CHECK(a.capacity() == 0);
 
   for (int i = 0; i < N; ++i) {
+    CAPTURE(i);
     REQUIRE(2 * i + 1 == b[i]);
   }
 }
 
-TEST_CASE_METHOD(PerformanceTest, "move_ctor") {
+TEST_CASE_METHOD(PerformanceTest, "move ctor") {
   static constexpr int N = 8'000;
 
   Vector<Vector<int>> a;
@@ -675,7 +664,7 @@ TEST_CASE_METHOD(PerformanceTest, "move_ctor") {
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "copy_assignment_operator") {
+TEST_CASE_METHOD(CorrectnessTest, "copy assignment operator") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -694,16 +683,17 @@ TEST_CASE_METHOD(CorrectnessTest, "copy_assignment_operator") {
   c = a;
   CHECK(a.size() == c.size());
   CHECK(a.size() == c.capacity());
-  CHECK(a.data() != c.data());
+  CHECK_FALSE(a.data() == c.data());
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
-    REQUIRE(2 * i + 1 == b[i]);
-    REQUIRE(2 * i + 1 == c[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
+    REQUIRE(b[i] == 2 * i + 1);
+    REQUIRE(c[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "move_assignment_operator_to_empty") {
+TEST_CASE_METHOD(CorrectnessTest, "move assignment operator to empty") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -716,23 +706,24 @@ TEST_CASE_METHOD(CorrectnessTest, "move_assignment_operator_to_empty") {
   Element::reset_counters();
   Vector<Element> b;
   b = std::move(a);
-  REQUIRE(0 == Element::get_copy_counter());
+  REQUIRE(Element::get_copy_counter() == 0);
 
-  CHECK(N == b.size());
-  CHECK(N <= b.capacity());
-  CHECK(a_data == b.data());
-  CHECK(a.data() != b.data());
+  CHECK(b.size() == N);
+  CHECK(b.capacity() >= N);
+  CHECK(b.data() == a_data);
+  CHECK_FALSE(a.data() == b.data());
 
-  CHECK(nullptr == a.data());
-  CHECK(0 == a.size());
-  CHECK(0 == a.capacity());
+  CHECK(a.data() == nullptr);
+  CHECK(a.size() == 0);
+  CHECK(a.capacity() == 0);
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * i + 1 == b[i]);
+    CAPTURE(i);
+    REQUIRE(b[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "move_assignment_operator_to_non_empty") {
+TEST_CASE_METHOD(CorrectnessTest, "move assignment operator to non-empty") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -747,23 +738,24 @@ TEST_CASE_METHOD(CorrectnessTest, "move_assignment_operator_to_non_empty") {
 
   Element::reset_counters();
   b = std::move(a);
-  REQUIRE(0 == Element::get_copy_counter());
+  REQUIRE(Element::get_copy_counter() == 0);
 
-  CHECK(N == b.size());
-  CHECK(N <= b.capacity());
-  CHECK(a_data == b.data());
-  CHECK(a.data() != b.data());
+  CHECK(b.size() == N);
+  CHECK(b.capacity() >= N);
+  CHECK(b.data() == a_data);
+  CHECK_FALSE(a.data() == b.data());
 
-  CHECK(nullptr == a.data());
-  CHECK(0 == a.size());
-  CHECK(0 == a.capacity());
+  CHECK(a.data() == nullptr);
+  CHECK(a.size() == 0);
+  CHECK(a.capacity() == 0);
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * i + 1 == b[i]);
+    CAPTURE(i);
+    REQUIRE(b[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "self_copy_assignment") {
+TEST_CASE_METHOD(CorrectnessTest, "self copy assignment") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -776,19 +768,20 @@ TEST_CASE_METHOD(CorrectnessTest, "self_copy_assignment") {
 
   Element::reset_counters();
   a = a;
-  REQUIRE(0 == Element::get_copy_counter());
-  REQUIRE(0 == Element::get_move_counter());
+  REQUIRE(Element::get_copy_counter() == 0);
+  REQUIRE(Element::get_move_counter() == 0);
 
-  CHECK(N == a.size());
-  CHECK(old_capacity == a.capacity());
-  CHECK(old_data == a.data());
+  CHECK(a.size() == N);
+  CHECK(a.capacity() == old_capacity);
+  CHECK(a.data() == old_data);
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "self_move_assignment") {
+TEST_CASE_METHOD(CorrectnessTest, "self move assignment") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -801,19 +794,20 @@ TEST_CASE_METHOD(CorrectnessTest, "self_move_assignment") {
 
   Element::reset_counters();
   a = std::move(a);
-  REQUIRE(0 == Element::get_copy_counter());
-  REQUIRE(0 == Element::get_move_counter());
+  REQUIRE(Element::get_copy_counter() == 0);
+  REQUIRE(Element::get_move_counter() == 0);
 
-  CHECK(static_cast<size_t>(N) == a.size());
-  CHECK(old_capacity == a.capacity());
-  CHECK(old_data == a.data());
+  CHECK(a.size() == N);
+  CHECK(a.capacity() == old_capacity);
+  CHECK(a.data() == old_data);
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(PerformanceTest, "move_assignment") {
+TEST_CASE_METHOD(PerformanceTest, "move assignment") {
   static constexpr int N = 8'000;
 
   Vector<Vector<int>> a;
@@ -828,12 +822,12 @@ TEST_CASE_METHOD(PerformanceTest, "move_assignment") {
 
   for (int i = 0; i < N; ++i) {
     for (int j = 0; j < N; ++j) {
-      REQUIRE(2 * i + 3 * j == a[i][j]);
+      REQUIRE(a[i][j] == 2 * i + 3 * j);
     }
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "empty_storage") {
+TEST_CASE_METHOD(CorrectnessTest, "empty storage") {
   Vector<Element> a;
   expect_empty_storage(a);
 
@@ -844,7 +838,7 @@ TEST_CASE_METHOD(CorrectnessTest, "empty_storage") {
   expect_empty_storage(a);
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "pop_back") {
+TEST_CASE_METHOD(CorrectnessTest, "`pop_back`") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -856,18 +850,19 @@ TEST_CASE_METHOD(CorrectnessTest, "pop_back") {
   Element* old_data = a.data();
 
   for (int i = N; i > 0; --i) {
-    REQUIRE(2 * i - 1 == a.back());
-    REQUIRE(static_cast<size_t>(i) == a.size());
+    CAPTURE(i);
+    REQUIRE(a.back() == 2 * i - 1);
+    REQUIRE(a.size() == static_cast<size_t>(i));
     a.pop_back();
   }
   instances_guard.expect_no_instances();
   CHECK(a.empty());
-  CHECK(0 == a.size());
-  CHECK(old_capacity == a.capacity());
-  CHECK(old_data == a.data());
+  CHECK(a.size() == 0);
+  CHECK(a.capacity() == old_capacity);
+  CHECK(a.data() == old_data);
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "destroy_order") {
+TEST_CASE_METHOD(CorrectnessTest, "destroy order") {
   Vector<OrderedElement> a;
 
   a.push_back(1);
@@ -875,25 +870,26 @@ TEST_CASE_METHOD(CorrectnessTest, "destroy_order") {
   a.push_back(3);
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "insert_begin") {
+TEST_CASE_METHOD(CorrectnessTest, "`insert` to begin") {
   static constexpr int N = 500;
 
   Vector<Element> a;
   for (int i = 0; i < N; ++i) {
     Element x = 2 * i + 1;
     auto it = a.insert(std::as_const(a).begin(), x);
-    REQUIRE(a.begin() == it);
-    REQUIRE(i + 1uz == a.size());
+    REQUIRE(it == a.begin());
+    REQUIRE(a.size() == i + 1uz);
   }
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * i + 1 == a.back());
+    CAPTURE(i);
+    REQUIRE(a.back() == 2 * i + 1);
     a.pop_back();
   }
   REQUIRE(a.empty());
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "insert_end") {
+TEST_CASE_METHOD(CorrectnessTest, "`insert` to end") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -901,24 +897,27 @@ TEST_CASE_METHOD(CorrectnessTest, "insert_end") {
   for (int i = 0; i < N; ++i) {
     a.push_back(2 * i + 1);
   }
-  REQUIRE(static_cast<size_t>(N) == a.size());
+  REQUIRE(a.size() == N);
 
   for (int i = 0; i < N; ++i) {
+    CAPTURE(i);
     Element x = 4 * i + 1;
     auto it = a.insert(a.end(), x);
-    REQUIRE(a.end() - 1 == it);
-    REQUIRE(N + i + 1uz == a.size());
+    REQUIRE(it == a.end() - 1);
+    REQUIRE(a.size() == N + i + 1uz);
   }
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
   for (int i = 0; i < N; ++i) {
-    REQUIRE(4 * i + 1 == a[N + i]);
+    CAPTURE(i);
+    REQUIRE(a[N + i] == 4 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(PerformanceTest, "insert") {
+TEST_CASE_METHOD(PerformanceTest, "`insert`") {
   static constexpr int N = 8'000;
 
   Vector<Vector<int>> a;
@@ -934,16 +933,16 @@ TEST_CASE_METHOD(PerformanceTest, "insert") {
     temp.push_back(3 * i);
   }
   auto it = a.insert(a.begin(), temp);
-  CHECK(a.begin() == it);
+  CHECK(it == a.begin());
 
   for (int i = 0; i <= N; ++i) {
     for (int j = 0; j < N; ++j) {
-      REQUIRE(2 * i + 3 * j == a[i][j]);
+      REQUIRE(a[i][j] == 2 * i + 3 * j);
     }
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "insert_xvalue_reallocation") {
+TEST_CASE_METHOD(CorrectnessTest, "`insert` xvalue with reallocation") {
   static constexpr int N = 500, K = 7;
 
   Vector<Element> a;
@@ -959,7 +958,7 @@ TEST_CASE_METHOD(CorrectnessTest, "insert_xvalue_reallocation") {
   REQUIRE(Element::get_copy_counter() <= 500);
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "insert_xvalue_reallocation_noexcept") {
+TEST_CASE_METHOD(CorrectnessTest, "`insert` xvalue with reallocation and noexcept move") {
   static constexpr int N = 500, K = 0;
 
   Vector<ElementWithNonThrowingMove> a;
@@ -975,7 +974,7 @@ TEST_CASE_METHOD(CorrectnessTest, "insert_xvalue_reallocation_noexcept") {
   REQUIRE(Element::get_copy_counter() == 0);
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "erase") {
+TEST_CASE_METHOD(CorrectnessTest, "`erase`") {
   static constexpr int N = 500;
 
   for (int i = 0; i < N; ++i) {
@@ -988,21 +987,23 @@ TEST_CASE_METHOD(CorrectnessTest, "erase") {
     Element* old_data = a.data();
 
     auto it = a.erase(std::as_const(a).begin() + i);
-    REQUIRE(a.begin() + i == it);
-    REQUIRE(N - 1 == a.size());
-    REQUIRE(old_capacity == a.capacity());
-    REQUIRE(old_data == a.data());
+    REQUIRE(it == a.begin() + i);
+    REQUIRE(a.size() == N - 1);
+    REQUIRE(a.capacity() == old_capacity);
+    REQUIRE(a.data() == old_data);
 
     for (int j = 0; j < i; ++j) {
-      REQUIRE(2 * j + 1 == a[j]);
+      CAPTURE(j);
+      REQUIRE(a[j] == 2 * j + 1);
     }
     for (int j = i; j < N - 1; ++j) {
-      REQUIRE(2 * (j + 1) + 1 == a[j]);
+      CAPTURE(j);
+      REQUIRE(a[j] == 2 * (j + 1) + 1);
     }
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "erase_begin") {
+TEST_CASE_METHOD(CorrectnessTest, "`erase` from begin") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -1012,15 +1013,16 @@ TEST_CASE_METHOD(CorrectnessTest, "erase_begin") {
 
   for (int i = 0; i < N; ++i) {
     auto it = a.erase(a.begin());
-    REQUIRE(a.begin() == it);
+    REQUIRE(it == a.begin());
   }
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * (i + N) + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * (i + N) + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "erase_end") {
+TEST_CASE_METHOD(CorrectnessTest, "`erase` from end") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -1030,15 +1032,17 @@ TEST_CASE_METHOD(CorrectnessTest, "erase_end") {
 
   for (int i = 0; i < N; ++i) {
     auto it = a.erase(a.end() - 1);
-    REQUIRE(a.end() == it);
+    CAPTURE(i);
+    REQUIRE(it == a.end());
   }
 
   for (int i = 0; i < N; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "erase_range_begin") {
+TEST_CASE_METHOD(CorrectnessTest, "`erase` range from begin") {
   static constexpr int N = 500, K = 100;
 
   Vector<Element> a;
@@ -1050,17 +1054,18 @@ TEST_CASE_METHOD(CorrectnessTest, "erase_range_begin") {
   Element* old_data = a.data();
 
   auto it = a.erase(std::as_const(a).begin(), std::as_const(a).begin() + K);
-  CHECK(a.begin() == it);
-  CHECK(N - K == a.size());
-  CHECK(old_capacity == a.capacity());
-  CHECK(old_data == a.data());
+  CHECK(it == a.begin());
+  CHECK(a.size() == N - K);
+  CHECK(a.capacity() == old_capacity);
+  CHECK(a.data() == old_data);
 
   for (int i = 0; i < N - K; ++i) {
-    REQUIRE(2 * (i + K) + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * (i + K) + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "erase_range_middle") {
+TEST_CASE_METHOD(CorrectnessTest, "`erase` range from middle") {
   static constexpr int N = 500, K = 100;
 
   Vector<Element> a;
@@ -1073,20 +1078,22 @@ TEST_CASE_METHOD(CorrectnessTest, "erase_range_middle") {
   Element* old_data = a.data();
 
   auto it = a.erase(a.begin() + K, a.end() - K);
-  CHECK(a.begin() + K == it);
-  CHECK(K * 2 == a.size());
-  CHECK(old_capacity == a.capacity());
-  CHECK(old_data == a.data());
+  CHECK(it == a.begin() + K);
+  CHECK(a.size() == K * 2);
+  CHECK(a.capacity() == old_capacity);
+  CHECK(a.data() == old_data);
 
   for (int i = 0; i < K; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    CAPTURE(i);
+    REQUIRE(a[i] == 2 * i + 1);
   }
   for (int i = 0; i < K; ++i) {
-    REQUIRE(2 * (i + N - K) + 1 == a[i + K]);
+    CAPTURE(i + K);
+    REQUIRE(a[i + K] == 2 * (i + N - K) + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "erase_range_end") {
+TEST_CASE_METHOD(CorrectnessTest, "`erase` range from end") {
   static constexpr int N = 500, K = 100;
 
   Vector<Element> a;
@@ -1099,17 +1106,17 @@ TEST_CASE_METHOD(CorrectnessTest, "erase_range_end") {
   Element* old_data = a.data();
 
   auto it = a.erase(a.end() - K, a.end());
-  CHECK(a.end() == it);
-  CHECK(N - K == a.size());
-  CHECK(old_capacity == a.capacity());
-  CHECK(old_data == a.data());
+  CHECK(it == a.end());
+  CHECK(a.size() == N - K);
+  CHECK(a.capacity() == old_capacity);
+  CHECK(a.data() == old_data);
 
   for (int i = 0; i < N - K; ++i) {
-    REQUIRE(2 * i + 1 == a[i]);
+    REQUIRE(a[i] == 2 * i + 1);
   }
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "erase_range_all") {
+TEST_CASE_METHOD(CorrectnessTest, "`erase` range all") {
   static constexpr int N = 500;
 
   Vector<Element> a;
@@ -1126,12 +1133,12 @@ TEST_CASE_METHOD(CorrectnessTest, "erase_range_all") {
 
   instances_guard.expect_no_instances();
   CHECK(a.empty());
-  CHECK(0 == a.size());
-  CHECK(old_capacity == a.capacity());
-  CHECK(old_data == a.data());
+  CHECK(a.size() == 0);
+  CHECK(a.capacity() == old_capacity);
+  CHECK(a.data() == old_data);
 }
 
-TEST_CASE_METHOD(PerformanceTest, "erase") {
+TEST_CASE_METHOD(PerformanceTest, "`erase`") {
   static constexpr int N = 8'000, M = 50'000, K = 100;
 
   Vector<int> a;
@@ -1140,13 +1147,13 @@ TEST_CASE_METHOD(PerformanceTest, "erase") {
       a.push_back(j);
     }
     auto it = a.erase(a.begin() + K, a.end() - K);
-    REQUIRE(a.begin() + K == it);
-    REQUIRE(K * 2 == a.size());
+    REQUIRE(it == a.begin() + K);
+    REQUIRE(a.size() == K * 2);
     a.clear();
   }
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_throw") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `push_back` with reallocation") {
   static constexpr int N = 10;
 
   faulty_run([] {
@@ -1167,7 +1174,7 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_throw") {
   });
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_push_back_from_self_throw") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `push_back` from self") {
   static constexpr int N = 10;
 
   faulty_run([] {
@@ -1185,7 +1192,7 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_push_back_from_self_throw") 
   });
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_throw_push_back_from_self_noexcept_move") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `push_back` from self with reallocation and noexcept move") {
   static constexpr int N = 10;
 
   faulty_run([] {
@@ -1205,7 +1212,7 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_throw_push_back_from_self_no
   });
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_insert_throw") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `insert` with reallocation") {
   static constexpr int N = 500;
 
   faulty_run([] {
@@ -1224,7 +1231,7 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_insert_throw") {
   });
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_throw_insert_noexcept") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `insert` with reallocation and noexcept move") {
   static constexpr int N = 500;
 
   faulty_run([] {
@@ -1246,7 +1253,7 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "reallocation_throw_insert_noexcept") {
   });
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "copy_throw") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing copy ctor") {
   static constexpr int N = 10;
 
   faulty_run([] {
@@ -1261,11 +1268,11 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "copy_throw") {
     dg.reset();
 
     StrongExceptionSafetyGuard sg(a);
-    [[maybe_unused]] Vector<Element> b(a);
+    [[maybe_unused]] Vector<Element> b{a};
   });
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "move_throw") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing move ctor") {
   static constexpr int N = 10;
 
   faulty_run([] {
@@ -1280,11 +1287,11 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "move_throw") {
     dg.reset();
 
     StrongExceptionSafetyGuard sg(a);
-    [[maybe_unused]] Vector<Element> b(std::move(a));
+    [[maybe_unused]] Vector<Element> b{std::move(a)};
   });
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "copy_assign_throw") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing copy assignment") {
   static constexpr int N = 10;
 
   faulty_run([] {
@@ -1305,7 +1312,7 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "copy_assign_throw") {
   });
 }
 
-TEST_CASE_METHOD(ExceptionSafetyTest, "move_assign_throw") {
+TEST_CASE_METHOD(ExceptionSafetyTest, "throwing move assignment") {
   static constexpr int N = 10;
 
   faulty_run([] {
@@ -1326,14 +1333,14 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "move_assign_throw") {
   });
 }
 
-TEST_CASE_METHOD(CorrectnessTest, "member_aliases") {
-  CHECK((std::is_same<Element, Vector<Element>::ValueType>::value));
-  CHECK((std::is_same<Element&, Vector<Element>::Reference>::value));
-  CHECK((std::is_same<const Element&, Vector<Element>::ConstReference>::value));
-  CHECK((std::is_same<Element*, Vector<Element>::Pointer>::value));
-  CHECK((std::is_same<const Element*, Vector<Element>::ConstPointer>::value));
-  CHECK((std::is_same<Element*, Vector<Element>::Iterator>::value));
-  CHECK((std::is_same<const Element*, Vector<Element>::ConstIterator>::value));
+TEST_CASE_METHOD(CorrectnessTest, "member aliases") {
+  STATIC_CHECK(std::is_same<Element, Vector<Element>::ValueType>::value);
+  STATIC_CHECK(std::is_same<Element&, Vector<Element>::Reference>::value);
+  STATIC_CHECK(std::is_same<const Element&, Vector<Element>::ConstReference>::value);
+  STATIC_CHECK(std::is_same<Element*, Vector<Element>::Pointer>::value);
+  STATIC_CHECK(std::is_same<const Element*, Vector<Element>::ConstPointer>::value);
+  STATIC_CHECK(std::is_same<Element*, Vector<Element>::Iterator>::value);
+  STATIC_CHECK(std::is_same<const Element*, Vector<Element>::ConstIterator>::value);
 }
 
 } // namespace test

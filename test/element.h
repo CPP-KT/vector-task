@@ -9,20 +9,20 @@ struct Element {
   struct NoNewInstancesGuard;
 
   Element() = delete;
-  Element(int data); // NOLINT
+  Element(int data); 
   Element(const Element& other);
   Element(Element&& other);
   ~Element();
 
   Element& operator=(const Element& c);
   Element& operator=(Element&& c);
-  operator int() const; // NOLINT
+  operator int() const; 
 
   static void reset_counters();
   static size_t get_copy_counter();
   static size_t get_move_counter();
 
-  friend void swap(Element&, Element&); // NOLINT
+  friend void swap(Element&, Element&); 
 
 private:
   void add_instance();

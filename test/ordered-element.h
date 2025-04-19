@@ -9,14 +9,14 @@ namespace ct::test {
 
 class OrderedElement {
 public:
-  OrderedElement(size_t val) // NOLINT
+  OrderedElement(size_t val)
       : val(val) {
     insertion_order().push_back(val);
   }
 
   OrderedElement(const OrderedElement& other)
       : val(other.val) {
-    other.val = 0; // NOLINT
+    other.val = 0;
   }
 
   ~OrderedElement() {
