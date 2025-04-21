@@ -658,7 +658,7 @@ TEST_CASE_METHOD(CorrectnessTest, "move ctor") {
   }
 }
 
-TEST_CASE_METHOD(PerformanceTest, "move ctor") {
+TEST_CASE_METHOD(PerformanceTest, "move ctor performance") {
   static constexpr int N = 8'000;
 
   Vector<Vector<int>> a;
@@ -820,7 +820,7 @@ TEST_CASE_METHOD(CorrectnessTest, "self move assignment") {
   }
 }
 
-TEST_CASE_METHOD(PerformanceTest, "move assignment") {
+TEST_CASE_METHOD(PerformanceTest, "move assignment performance") {
   static constexpr int N = 8'000;
 
   Vector<Vector<int>> a;
@@ -930,7 +930,7 @@ TEST_CASE_METHOD(CorrectnessTest, "`insert` to end") {
   }
 }
 
-TEST_CASE_METHOD(PerformanceTest, "`insert`") {
+TEST_CASE_METHOD(PerformanceTest, "`insert` performance") {
   static constexpr int N = 8'000;
 
   Vector<Vector<int>> a;
@@ -1151,7 +1151,7 @@ TEST_CASE_METHOD(CorrectnessTest, "`erase` range all") {
   CHECK(a.data() == old_data);
 }
 
-TEST_CASE_METHOD(PerformanceTest, "`erase`") {
+TEST_CASE_METHOD(PerformanceTest, "`erase` performance") {
   static constexpr int N = 8'000, M = 50'000, K = 100;
 
   Vector<int> a;
