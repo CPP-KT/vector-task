@@ -21,7 +21,7 @@ void* injected_allocate(size_t count, size_t alignment) {
 }
 
 void injected_deallocate(void* ptr) {
-  free(ptr);
+  std::free(ptr);
 }
 
 template <typename T>
@@ -31,13 +31,15 @@ struct FaultInjectionAllocator {
   FaultInjectionAllocator() = default;
 
   template <typename U>
-  FaultInjectionAllocator([[maybe_unused]] const FaultInjectionAllocator<U>& _) {}
+  FaultInjectionAllocator([[maybe_unused]] const FaultInjectionAllocator<U>& other) {}
 
   template <typename U>
-  FaultInjectionAllocator& operator=([[maybe_unused]] const FaultInjectionAllocator<U>& _) {}
+  FaultInjectionAllocator& operator=([[maybe_unused]] const FaultInjectionAllocator<U>& other) {
+    return *this;
+  }
 
   T* allocate(size_t count) {
-    return static_cast<T*>(injected_allocate(count * sizeof(T), sizeof(T)));
+    return static_cast<T*>(injected_allocate(count * sizeof(T), alignof(T)));
   }
 
   void deallocate(void* ptr, [[maybe_unused]] size_t sz) {
