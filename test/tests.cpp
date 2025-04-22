@@ -1374,7 +1374,7 @@ TEST_CASE_METHOD(CorrectnessTest, "member aliases") {
 }
 
 TEST_CASE_METHOD(CorrectnessTest, "overaligned type") {
-  struct alignas(alignof(max_align_t) * 8) Overaligned {
+  struct alignas(alignof(std::max_align_t) * 8) Overaligned {
     int x;
   };
 
