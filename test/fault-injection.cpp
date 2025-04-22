@@ -1,17 +1,18 @@
 #include "fault-injection.h"
 
 #include <cassert>
+#include <cstdlib>
 #include <iostream>
 #include <vector>
 
 namespace {
 
-void* injected_allocate(size_t count) {
+void* injected_allocate(size_t count, size_t alignment) {
   if (ct::test::should_inject_fault()) {
     throw std::bad_alloc();
   }
 
-  void* ptr = malloc(count);
+  void* ptr = std::aligned_alloc(alignment, count);
   if (ptr == nullptr) {
     throw std::bad_alloc();
   }
@@ -36,10 +37,10 @@ struct FaultInjectionAllocator {
   FaultInjectionAllocator& operator=([[maybe_unused]] const FaultInjectionAllocator<U>& _) {}
 
   T* allocate(size_t count) {
-    return static_cast<T*>(injected_allocate(count * sizeof(T)));
+    return static_cast<T*>(injected_allocate(count * sizeof(T), sizeof(T)));
   }
 
-  void deallocate(void* ptr, size_t /*sz*/) {
+  void deallocate(void* ptr, [[maybe_unused]] size_t sz) {
     injected_deallocate(ptr);
   }
 };
@@ -57,7 +58,7 @@ thread_local bool disabled_move_throw = false;
 thread_local FaultInjectionContext* context = nullptr;
 
 void dump_state() {
-#if 0 
+#if 0
   FaultInjectionDisable dg;
   std::cout << "skip_ranges: {";
   if (!context->skip_ranges.empty()) {
@@ -73,15 +74,19 @@ void dump_state() {
 } // namespace
 
 void* operator new(size_t count) {
-  return injected_allocate(count);
+  return injected_allocate(count, 1);
 }
 
-void* operator new(size_t count, [[maybe_unused]] std::align_val_t al) {
-  return injected_allocate(count);
+void* operator new(size_t count, std::align_val_t al) {
+  return injected_allocate(count, static_cast<size_t>(al));
 }
 
 void* operator new[](size_t count) {
-  return injected_allocate(count);
+  return injected_allocate(count, 1);
+}
+
+void* operator new[](size_t count, std::align_val_t al) {
+  return injected_allocate(count, static_cast<size_t>(al));
 }
 
 void operator delete(void* ptr) noexcept {
@@ -92,15 +97,27 @@ void operator delete(void* ptr, [[maybe_unused]] std::align_val_t al) noexcept {
   injected_deallocate(ptr);
 }
 
-void operator delete[](void* ptr) noexcept {
-  injected_deallocate(ptr);
-}
-
 void operator delete(void* ptr, [[maybe_unused]] size_t sz) noexcept {
   injected_deallocate(ptr);
 }
 
+void operator delete(void* ptr, [[maybe_unused]] size_t sz, [[maybe_unused]] std::align_val_t al) noexcept {
+  injected_deallocate(ptr);
+}
+
+void operator delete[](void* ptr) noexcept {
+  injected_deallocate(ptr);
+}
+
+void operator delete[](void* ptr, [[maybe_unused]] std::align_val_t al) noexcept {
+  injected_deallocate(ptr);
+}
+
 void operator delete[](void* ptr, [[maybe_unused]] size_t sz) noexcept {
+  injected_deallocate(ptr);
+}
+
+void operator delete[](void* ptr, [[maybe_unused]] size_t sz, [[maybe_unused]] std::align_val_t al) noexcept {
   injected_deallocate(ptr);
 }
 
