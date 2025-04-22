@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BUILD_TYPE=$1
+PRESET_NAME=$1
 
-if [[ $BUILD_TYPE == Sanitized* ]]; then
+if [[ ${PRESET_NAME} == *-Sanitized* ]]; then
   export ASAN_OPTIONS=alloc_dealloc_mismatch=0
 fi
 
-if [[ $BUILD_TYPE == 'Debug' && -n $(which gdb) && $(uname -s) != MINGW* ]]; then
+if [[ ${PRESET_NAME} == *-Debug && -n $(which gdb) && $(uname -s) != MINGW* ]]; then
   gdb -q -return-child-result --batch \
     -ex 'handle SIGHUP nostop pass' \
     -ex 'handle SIGQUIT nostop pass' \
@@ -21,7 +21,7 @@ if [[ $BUILD_TYPE == 'Debug' && -n $(which gdb) && $(uname -s) != MINGW* ]]; the
     -ex 'set print frame-arguments all' \
     -ex 'run' \
     -ex 'thread apply all bt -frame-info source-and-location -full' \
-    --args "build/${BUILD_TYPE}/tests"
+    --args "build/${PRESET_NAME}/tests"
 else
-  "build/${BUILD_TYPE}/tests"
+  "build/${PRESET_NAME}/tests"
 fi
