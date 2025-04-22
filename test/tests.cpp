@@ -1373,5 +1373,21 @@ TEST_CASE_METHOD(CorrectnessTest, "member aliases") {
   STATIC_CHECK(std::is_same<const Element*, Vector<Element>::ConstIterator>::value);
 }
 
+TEST_CASE_METHOD(CorrectnessTest, "overaligned type") {
+  struct alignas(alignof(max_align_t) * 8) Overaligned {
+    int x;
+  };
+
+  Vector<Overaligned> v;
+  v.push_back(Overaligned{42});
+  v.push_back(Overaligned{1337});
+  v.push_back(Overaligned{228});
+
+  REQUIRE(v.size() == 3);
+  CHECK(v[0].x == 42);
+  CHECK(v[1].x == 1337);
+  CHECK(v[2].x == 228);
+}
+
 } // namespace test
 } // namespace ct
