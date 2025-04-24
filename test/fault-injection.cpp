@@ -55,8 +55,6 @@ struct FaultInjectionContext {
 };
 
 thread_local bool disabled = false;
-thread_local bool disabled_move_throw = false;
-
 thread_local FaultInjectionContext* context = nullptr;
 
 void dump_state() {
@@ -156,10 +154,6 @@ bool should_inject_fault() {
   return false;
 }
 
-bool move_throw_disabled() {
-  return disabled_move_throw;
-}
-
 void fault_injection_point() {
   if (should_inject_fault()) {
     FaultInjectionDisable dg;
@@ -201,19 +195,6 @@ void FaultInjectionDisable::reset() const {
 }
 
 FaultInjectionDisable::~FaultInjectionDisable() {
-  reset();
-}
-
-FaultInjectionMoveThrowDisable::FaultInjectionMoveThrowDisable()
-    : was_disabled(disabled_move_throw) {
-  disabled_move_throw = true;
-}
-
-void FaultInjectionMoveThrowDisable::reset() const {
-  disabled_move_throw = was_disabled;
-}
-
-FaultInjectionMoveThrowDisable::~FaultInjectionMoveThrowDisable() {
   reset();
 }
 

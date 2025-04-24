@@ -30,7 +30,7 @@ public:
   ~StrongExceptionSafetyGuard() {
     if (std::uncaught_exceptions() > 0) {
       FaultInjectionDisable dg{};
-      REQUIRE_THAT(expected, Catch::Matchers::RangeEquals(ref));
+      CHECK_THAT(expected, Catch::Matchers::RangeEquals(ref));
     }
   }
 
@@ -50,14 +50,9 @@ public:
 
   ~StrongExceptionSafetyGuard() {
     if (std::uncaught_exceptions() > 0) {
-      do_assertion();
+      FaultInjectionDisable dg;
+      CHECK(expected == ref);
     }
-  }
-
-private:
-  void do_assertion() {
-    FaultInjectionDisable dg;
-    REQUIRE(expected == ref);
   }
 
 private:
@@ -79,7 +74,7 @@ protected:
     CHECK(a.data() == nullptr);
   }
 
-  Element::NoNewInstancesGuard instances_guard;
+  NoNewInstancesGuard instances_guard;
 };
 
 class CorrectnessTest : public BaseTest {};
@@ -99,7 +94,7 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "non-throwing default ctor") {
       Vector<Element> a;
     } catch (...) {
       FaultInjectionDisable dg;
-      FAIL("default constructor should not throw");
+      FAIL_CHECK("default constructor should not throw");
       throw;
     }
   });
@@ -605,7 +600,7 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "non-throwing `clear`") {
       a.clear();
     } catch (...) {
       FaultInjectionDisable dg_2;
-      FAIL("clear() should not throw");
+      FAIL_CHECK("clear() should not throw");
       throw;
     }
   });
@@ -1219,7 +1214,6 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `push_back` xvalue from self wit
     }
     dg.reset();
 
-    FaultInjectionMoveThrowDisable mdg;
     StrongExceptionSafetyGuard sg(a);
     a.push_back(std::move(a[0]));
   });
@@ -1236,7 +1230,6 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `push_back` lvalue from self wit
     }
     dg.reset();
 
-    FaultInjectionMoveThrowDisable mdg;
     StrongExceptionSafetyGuard sg(a);
     a.push_back(a[0]);
   });
@@ -1276,7 +1269,6 @@ TEST_CASE_METHOD(ExceptionSafetyTest, "throwing `insert` with reallocation and n
 
     dg.reset();
 
-    FaultInjectionMoveThrowDisable mdg;
     StrongExceptionSafetyGuard sg(a);
     ElementWithNonThrowingMove x = 42;
     [[maybe_unused]] auto it = a.insert(std::as_const(a).begin(), std::move(x));

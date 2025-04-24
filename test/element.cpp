@@ -9,33 +9,30 @@
 
 namespace ct::test {
 
-Element::Element(int data)
+ElementBase::ElementBase(int data)
     : data(data) {
   fault_injection_point();
   add_instance();
 }
 
-Element::Element(const Element& other)
+ElementBase::ElementBase(const ElementBase& other)
     : data(other.data) {
   fault_injection_point();
   add_instance();
   ++copy_counter;
 }
 
-Element::Element(Element&& other)
+ElementBase::ElementBase(ElementBase&& other) noexcept
     : data(std::exchange(other.data, -1)) {
-  if (!move_throw_disabled()) {
-    fault_injection_point();
-  }
   add_instance();
   ++move_counter;
 }
 
-Element::~Element() {
+ElementBase::~ElementBase() {
   delete_instance();
 }
 
-Element& Element::operator=(const Element& c) {
+ElementBase& ElementBase::operator=(const ElementBase& c) {
   assert_exists();
   fault_injection_point();
 
@@ -44,85 +41,91 @@ Element& Element::operator=(const Element& c) {
   return *this;
 }
 
-Element& Element::operator=(Element&& c) {
+ElementBase& ElementBase::operator=(ElementBase&& c) noexcept {
   assert_exists();
-  if (!move_throw_disabled()) {
-    fault_injection_point();
-  }
   ++move_counter;
   data = std::exchange(c.data, -1);
   return *this;
 }
 
-Element::operator int() const {
+ElementBase::operator int() const {
   assert_exists();
   fault_injection_point();
 
   return data;
 }
 
-void swap(Element& lhs, Element& rhs) {
-  if (!move_throw_disabled()) {
-    fault_injection_point();
-  }
-  std::swap(lhs.data, rhs.data);
-}
-
-void Element::reset_counters() {
+void ElementBase::reset_counters() {
   copy_counter = 0;
   move_counter = 0;
 }
 
-size_t Element::get_copy_counter() {
+size_t ElementBase::get_copy_counter() {
   return copy_counter;
 }
 
-size_t Element::get_move_counter() {
+size_t ElementBase::get_move_counter() {
   return move_counter;
 }
 
-void Element::add_instance() {
+void ElementBase::add_instance() noexcept {
   FaultInjectionDisable dg;
   auto p = instances.insert(this);
   if (!p.second) {
-    std::stringstream ss;
-    ss << "A new object is created at the address " << static_cast<void*>(this)
-       << " while the previous object at this address was not destroyed";
-    throw std::logic_error(ss.str());
+    FAIL_CHECK(
+        "A new object is created at the address " << static_cast<void*>(this)
+                                                  << " while the previous object at this address was not destroyed"
+    );
   }
 }
 
-void Element::delete_instance() {
+void ElementBase::delete_instance() noexcept {
   FaultInjectionDisable dg;
   size_t erased = instances.erase(this);
   if (erased != 1) {
-    std::stringstream ss;
-    ss << "Attempt of destroying non-existing object at address " << static_cast<void*>(this) << '\n';
-    FAIL(ss.str());
+    FAIL_CHECK("Attempt of destroying non-existing object at address " << static_cast<void*>(this));
   }
 }
 
-void Element::assert_exists() const {
+void ElementBase::assert_exists() const noexcept {
   FaultInjectionDisable dg;
   bool exists = instances.find(this) != instances.end();
   if (!exists) {
-    std::stringstream ss;
-    ss << "Accessing a non-existing object at address " << static_cast<const void*>(this);
-    throw std::logic_error(ss.str());
+    FAIL_CHECK("Accessing a non-existing object at address " << static_cast<const void*>(this));
   }
 }
 
-std::set<const Element*> Element::instances;
+std::set<const ElementBase*> ElementBase::instances;
 
-Element::NoNewInstancesGuard::NoNewInstancesGuard()
-    : old_instances(instances) {}
+NoNewInstancesGuard::NoNewInstancesGuard()
+    : old_instances(ElementBase::instances) {}
 
-Element::NoNewInstancesGuard::~NoNewInstancesGuard() {
-  CHECK(old_instances == instances);
+NoNewInstancesGuard::~NoNewInstancesGuard() {
+  CHECK(old_instances == ElementBase::instances);
 }
 
-void Element::NoNewInstancesGuard::expect_no_instances() {
-  CHECK(old_instances == instances);
+void NoNewInstancesGuard::expect_no_instances() {
+  CHECK(old_instances == ElementBase::instances);
+}
+
+Element::Element(Element&& other)
+    : ElementBase(std::move(other)) {
+  fault_injection_point();
+}
+
+Element& Element::operator=(Element&& c) {
+  fault_injection_point();
+  ElementBase::operator=(std::move(c));
+  return *this;
+}
+
+void swap(Element& lhs, Element& rhs) {
+  fault_injection_point();
+  std::swap(lhs.data, rhs.data);
+}
+
+void swap(ElementWithNonThrowingMove& lhs, ElementWithNonThrowingMove& rhs) noexcept {
+  std::swap(lhs.data, rhs.data);
 }
 
 } // namespace ct::test

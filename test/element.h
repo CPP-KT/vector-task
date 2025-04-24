@@ -5,39 +5,10 @@
 
 namespace ct::test {
 
-struct Element {
-  struct NoNewInstancesGuard;
+class ElementBase;
 
-  Element() = delete;
-  Element(int data);
-  Element(const Element& other);
-  Element(Element&& other);
-  ~Element();
-
-  Element& operator=(const Element& c);
-  Element& operator=(Element&& c);
-  operator int() const;
-
-  static void reset_counters();
-  static size_t get_copy_counter();
-  static size_t get_move_counter();
-
-  friend void swap(Element&, Element&);
-
-private:
-  void add_instance();
-  void delete_instance();
-  void assert_exists() const;
-
-private:
-  int data;
-
-  static std::set<const Element*> instances;
-  inline static size_t copy_counter = 0;
-  inline static size_t move_counter = 0;
-};
-
-struct Element::NoNewInstancesGuard {
+class NoNewInstancesGuard {
+public:
   NoNewInstancesGuard();
 
   NoNewInstancesGuard(const NoNewInstancesGuard&) = delete;
@@ -48,16 +19,57 @@ struct Element::NoNewInstancesGuard {
   void expect_no_instances();
 
 private:
-  std::set<const Element*> old_instances;
+  std::set<const ElementBase*> old_instances;
 };
 
-struct ElementWithNonThrowingMove : Element {
-  using Element::Element;
+class ElementBase {
+public:
+  ElementBase(int data);
+  ElementBase(const ElementBase& other);
+  ElementBase(ElementBase&& other) noexcept;
+  ~ElementBase();
 
-  ElementWithNonThrowingMove(const ElementWithNonThrowingMove& other) = default;
-  ElementWithNonThrowingMove(ElementWithNonThrowingMove&& other) noexcept = default;
+  ElementBase& operator=(const ElementBase& c);
+  ElementBase& operator=(ElementBase&& c) noexcept;
+  operator int() const;
 
-  ElementWithNonThrowingMove& operator=(const ElementWithNonThrowingMove& other) = default;
-  ElementWithNonThrowingMove& operator=(ElementWithNonThrowingMove&& other) noexcept = default;
+  static void reset_counters();
+  static size_t get_copy_counter();
+  static size_t get_move_counter();
+
+protected:
+  void add_instance() noexcept;
+  void delete_instance() noexcept;
+  void assert_exists() const noexcept;
+
+protected:
+  int data;
+
+  static std::set<const ElementBase*> instances;
+  inline static size_t copy_counter = 0;
+  inline static size_t move_counter = 0;
+
+  friend class NoNewInstancesGuard;
 };
+
+class Element : public ElementBase {
+public:
+  using ElementBase::ElementBase;
+
+  Element(const Element& other) = default;
+  Element(Element&& other);
+
+  Element& operator=(const Element& c) = default;
+  Element& operator=(Element&& c);
+
+  friend void swap(Element&, Element&);
+};
+
+class ElementWithNonThrowingMove : public ElementBase {
+public:
+  using ElementBase::ElementBase;
+
+  friend void swap(ElementWithNonThrowingMove&, ElementWithNonThrowingMove&) noexcept;
+};
+
 } // namespace ct::test

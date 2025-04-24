@@ -31,14 +31,15 @@ public:
 private:
   mutable size_t val;
 
-  void delete_instance() const {
+  void delete_instance() const noexcept {
     if (val == 0) {
       return;
     }
 
+    FaultInjectionDisable dg;
     size_t back = insertion_order().back();
     INFO("Elements must be destroyed in reverse order of insertion");
-    REQUIRE(val == back);
+    CHECK(val == back);
     insertion_order().pop_back();
   }
 };

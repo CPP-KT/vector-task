@@ -10,7 +10,6 @@ struct InjectedFault : std::runtime_error {
 };
 
 bool should_inject_fault();
-bool move_throw_disabled();
 void fault_injection_point();
 void faulty_run(const std::function<void()>& f);
 
@@ -23,20 +22,6 @@ struct FaultInjectionDisable {
   FaultInjectionDisable& operator=(const FaultInjectionDisable&) = delete;
 
   ~FaultInjectionDisable();
-
-private:
-  bool was_disabled;
-};
-
-struct FaultInjectionMoveThrowDisable {
-  FaultInjectionMoveThrowDisable();
-
-  void reset() const;
-
-  FaultInjectionMoveThrowDisable(const FaultInjectionMoveThrowDisable&) = delete;
-  FaultInjectionMoveThrowDisable& operator=(const FaultInjectionMoveThrowDisable&) = delete;
-
-  ~FaultInjectionMoveThrowDisable();
 
 private:
   bool was_disabled;
