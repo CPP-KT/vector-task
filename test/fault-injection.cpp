@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
+#include <numeric>
 #include <vector>
 
 namespace {
@@ -12,7 +13,7 @@ void* injected_allocate(size_t count, size_t alignment) {
     throw std::bad_alloc();
   }
 
-  void* ptr = std::aligned_alloc(alignment, count);
+  void* ptr = std::aligned_alloc(std::max(alignment, sizeof(void*)), std::lcm(count, sizeof(void*)));
   if (ptr == nullptr) {
     throw std::bad_alloc();
   }
