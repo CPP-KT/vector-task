@@ -13,7 +13,12 @@ void* injected_allocate(size_t count, size_t alignment) {
     throw std::bad_alloc();
   }
 
-  void* ptr = std::aligned_alloc(std::max(alignment, sizeof(void*)), std::lcm(count, sizeof(void*)));
+  alignment = std::max(alignment, sizeof(void*));
+  if (count % alignment != 0) {
+    count += (alignment - count % alignment);
+  }
+
+  void* ptr = std::aligned_alloc(alignment, count);
   if (ptr == nullptr) {
     throw std::bad_alloc();
   }
