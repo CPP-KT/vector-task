@@ -73,8 +73,10 @@ jobs:
             echo -e '\e[0;33mWARNING: Running a newer version of the tests than you have pushed.\e[0m'
           fi
           ci-extra/test.sh "$CT_CMAKE_PRESET"
+        timeout-minutes: 10
 
       - name: Run tests with valgrind
         if: ${{ matrix.build-type == 'RelWithDebInfo' }}
         run: |
           ci-extra/test-valgrind.sh "$CT_CMAKE_PRESET"
+        timeout-minutes: 15
