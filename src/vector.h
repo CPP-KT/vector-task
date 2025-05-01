@@ -107,10 +107,10 @@ public:
   ConstIterator end() const noexcept;
 
   // O(N) strong
-  Iterator insert(ConstIterator pos, const T& value);
+  Iterator insert(ConstIterator pos, const T& value) requires (std::is_copy_assignable_v<T>);
 
   // O(N) strong if move nothrow
-  Iterator insert(ConstIterator pos, T&& value);
+  Iterator insert(ConstIterator pos, T&& value) requires (std::is_move_assignable_v<T>);
 
   // O(N) nothrow(swap)
   Iterator erase(ConstIterator pos);
